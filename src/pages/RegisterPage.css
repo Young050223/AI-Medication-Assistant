@@ -1,0 +1,103 @@
+/**
+ * @file RegisterPage.css
+ * @description 注册页面样式 - 老年友好设计
+ * @author AI用药助手开发团队
+ * @created 2026-01-17
+ */
+
+/* 页面容器 */
+.register-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* 头部区域 */
+.register-header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.register-logo {
+    font-size: 56px;
+    margin-bottom: 12px;
+}
+
+.register-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0 0 8px 0;
+}
+
+.register-subtitle {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0;
+}
+
+/* 表单区域 */
+.register-form {
+    width: 100%;
+    max-width: 400px;
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* 注册按钮 */
+.register-button {
+    width: 100%;
+    padding: 18px;
+    font-size: 22px;
+    font-weight: 700;
+    color: #ffffff;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    margin-top: 8px;
+}
+
+.register-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.register-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.register-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* 底部链接 */
+.register-footer {
+    margin-top: 24px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 18px;
+}
+
+/* 响应式设计 */
+@media (max-width: 480px) {
+    .register-page {
+        padding: 16px;
+    }
+
+    .register-form {
+        padding: 20px;
+    }
+
+    .register-title {
+        font-size: 24px;
+    }
+}

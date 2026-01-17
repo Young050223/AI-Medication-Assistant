@@ -1,0 +1,218 @@
+/**
+ * @file i18n/index.ts
+ * @description 国际化配置，支持简体中文、繁体中文、英文
+ * @author AI用药助手开发团队
+ * @created 2026-01-17
+ * @modified 2026-01-17
+ */
+
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+
+// 语言资源
+const resources = {
+    'zh-CN': {
+        translation: {
+            // 通用
+            app: {
+                name: 'AI用药助手',
+                loading: '加载中...',
+                error: '出错了',
+                retry: '重试',
+                confirm: '确认',
+                cancel: '取消',
+                save: '保存',
+                next: '下一步',
+                back: '返回',
+                skip: '跳过',
+            },
+            // 认证相关
+            auth: {
+                login: '登录',
+                register: '注册',
+                logout: '退出登录',
+                email: '邮箱',
+                phone: '手机号',
+                password: '密码',
+                confirmPassword: '确认密码',
+                displayName: '姓名',
+                loginTitle: '欢迎回来',
+                loginSubtitle: '请登录您的账户',
+                registerTitle: '创建账户',
+                registerSubtitle: '开始您的健康管理之旅',
+                noAccount: '还没有账户？',
+                hasAccount: '已有账户？',
+                loginError: '登录失败，请检查您的邮箱和密码',
+                registerError: '注册失败，请稍后重试',
+                passwordMismatch: '两次输入的密码不一致',
+                emailRequired: '请输入邮箱',
+                passwordRequired: '请输入密码',
+                nameRequired: '请输入姓名',
+            },
+            // 健康档案
+            healthProfile: {
+                title: '健康档案',
+                subtitle: '请填写您的基本健康信息',
+                basicInfo: '基本信息',
+                birthDate: '出生日期',
+                gender: '性别',
+                male: '男',
+                female: '女',
+                other: '其他',
+                height: '身高 (cm)',
+                weight: '体重 (kg)',
+                medicalHistory: '过往病史',
+                medicalHistoryHint: '请描述您的主要病史',
+                allergies: '过敏药物',
+                allergiesHint: '请列出您过敏的药物',
+                saveSuccess: '健康档案保存成功',
+                saveError: '保存失败，请稍后重试',
+                required: '请先完成健康档案',
+            },
+            // 导航
+            nav: {
+                home: '首页',
+                medications: '用药',
+                profile: '我的',
+            },
+        },
+    },
+    'zh-TW': {
+        translation: {
+            app: {
+                name: 'AI用藥助手',
+                loading: '載入中...',
+                error: '出錯了',
+                retry: '重試',
+                confirm: '確認',
+                cancel: '取消',
+                save: '保存',
+                next: '下一步',
+                back: '返回',
+                skip: '跳過',
+            },
+            auth: {
+                login: '登入',
+                register: '註冊',
+                logout: '退出登入',
+                email: '電郵',
+                phone: '手機號',
+                password: '密碼',
+                confirmPassword: '確認密碼',
+                displayName: '姓名',
+                loginTitle: '歡迎回來',
+                loginSubtitle: '請登入您的帳戶',
+                registerTitle: '創建帳戶',
+                registerSubtitle: '開始您的健康管理之旅',
+                noAccount: '還沒有帳戶？',
+                hasAccount: '已有帳戶？',
+                loginError: '登入失敗，請檢查您的電郵和密碼',
+                registerError: '註冊失敗，請稍後重試',
+                passwordMismatch: '兩次輸入的密碼不一致',
+                emailRequired: '請輸入電郵',
+                passwordRequired: '請輸入密碼',
+                nameRequired: '請輸入姓名',
+            },
+            healthProfile: {
+                title: '健康檔案',
+                subtitle: '請填寫您的基本健康信息',
+                basicInfo: '基本信息',
+                birthDate: '出生日期',
+                gender: '性別',
+                male: '男',
+                female: '女',
+                other: '其他',
+                height: '身高 (cm)',
+                weight: '體重 (kg)',
+                medicalHistory: '過往病史',
+                medicalHistoryHint: '請描述您的主要病史',
+                allergies: '過敏藥物',
+                allergiesHint: '請列出您過敏的藥物',
+                saveSuccess: '健康檔案保存成功',
+                saveError: '保存失敗，請稍後重試',
+                required: '請先完成健康檔案',
+            },
+            nav: {
+                home: '首頁',
+                medications: '用藥',
+                profile: '我的',
+            },
+        },
+    },
+    'en': {
+        translation: {
+            app: {
+                name: 'AI Medication Assistant',
+                loading: 'Loading...',
+                error: 'Error',
+                retry: 'Retry',
+                confirm: 'Confirm',
+                cancel: 'Cancel',
+                save: 'Save',
+                next: 'Next',
+                back: 'Back',
+                skip: 'Skip',
+            },
+            auth: {
+                login: 'Login',
+                register: 'Register',
+                logout: 'Logout',
+                email: 'Email',
+                phone: 'Phone',
+                password: 'Password',
+                confirmPassword: 'Confirm Password',
+                displayName: 'Name',
+                loginTitle: 'Welcome Back',
+                loginSubtitle: 'Please login to your account',
+                registerTitle: 'Create Account',
+                registerSubtitle: 'Start your health management journey',
+                noAccount: "Don't have an account?",
+                hasAccount: 'Already have an account?',
+                loginError: 'Login failed, please check your email and password',
+                registerError: 'Registration failed, please try again later',
+                passwordMismatch: 'Passwords do not match',
+                emailRequired: 'Please enter email',
+                passwordRequired: 'Please enter password',
+                nameRequired: 'Please enter name',
+            },
+            healthProfile: {
+                title: 'Health Profile',
+                subtitle: 'Please fill in your basic health information',
+                basicInfo: 'Basic Information',
+                birthDate: 'Birth Date',
+                gender: 'Gender',
+                male: 'Male',
+                female: 'Female',
+                other: 'Other',
+                height: 'Height (cm)',
+                weight: 'Weight (kg)',
+                medicalHistory: 'Medical History',
+                medicalHistoryHint: 'Please describe your main medical history',
+                allergies: 'Allergies',
+                allergiesHint: 'Please list medications you are allergic to',
+                saveSuccess: 'Health profile saved successfully',
+                saveError: 'Save failed, please try again later',
+                required: 'Please complete your health profile first',
+            },
+            nav: {
+                home: 'Home',
+                medications: 'Medications',
+                profile: 'Profile',
+            },
+        },
+    },
+};
+
+// 初始化i18n
+i18n
+    .use(initReactI18next)
+    .init({
+        resources,
+        lng: 'zh-CN', // 默认语言
+        fallbackLng: 'zh-CN',
+        interpolation: {
+            escapeValue: false,
+        },
+    });
+
+export default i18n;

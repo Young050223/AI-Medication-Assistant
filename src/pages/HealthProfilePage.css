@@ -1,0 +1,168 @@
+/**
+ * @file HealthProfilePage.css
+ * @description 健康档案页面样式 - 老年友好设计
+ * @author AI用药助手开发团队
+ * @created 2026-01-17
+ */
+
+/* 加载状态 */
+.health-profile-loading {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+}
+
+.health-profile-loading .loading-spinner {
+    font-size: 64px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* 页面容器 */
+.health-profile-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    padding: 60px 16px 32px;
+}
+
+.health-profile-container {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+/* 头部 */
+.health-profile-header {
+    text-align: center;
+    margin-bottom: 24px;
+    color: #ffffff;
+}
+
+.page-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+}
+
+.page-subtitle {
+    font-size: 16px;
+    opacity: 0.9;
+    margin: 0;
+}
+
+/* 表单 */
+.health-profile-form {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* 表单区域 */
+.form-section {
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 16px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+/* 性别选择 */
+.gender-options {
+    display: flex;
+    gap: 12px;
+}
+
+.gender-btn {
+    flex: 1;
+    padding: 14px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #6b7280;
+    background: #f3f4f6;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.gender-btn:hover {
+    border-color: #10b981;
+}
+
+.gender-btn.active {
+    color: #ffffff;
+    background: #10b981;
+    border-color: #10b981;
+}
+
+.gender-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* 表单行（并排） */
+.form-row {
+    display: flex;
+    gap: 16px;
+}
+
+.form-group.half {
+    flex: 1;
+}
+
+/* 保存按钮 */
+.save-button {
+    width: 100%;
+    padding: 18px;
+    font-size: 22px;
+    font-weight: 700;
+    color: #ffffff;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    margin-top: 8px;
+}
+
+.save-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.save-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* 响应式设计 */
+@media (max-width: 480px) {
+    .health-profile-page {
+        padding: 50px 12px 24px;
+    }
+
+    .health-profile-form {
+        padding: 20px;
+    }
+
+    .page-title {
+        font-size: 24px;
+    }
+
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .form-group.half {
+        flex: none;
+    }
+}
