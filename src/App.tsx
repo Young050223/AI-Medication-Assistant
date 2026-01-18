@@ -1,6 +1,6 @@
 /**
  * @file App.tsx
- * @description 应用主入口，路由管理
+ * @description 应用主入口，路由管理 - M1和M2验证版本
  * @author AI用药助手开发团队
  * @created 2026-01-17
  * @modified 2026-01-18
@@ -12,14 +12,15 @@ import { useAuth } from './hooks/user/useAuth';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import HealthProfilePage from './pages/HealthProfilePage';
-import MedicalRecordUploadPage from './pages/MedicalRecordUploadPage';
-import MedicationSchedulePage from './pages/MedicationSchedulePage';
-import type { ExtractedMedication } from './types/MedicalRecord.types';
+// M3和M4暂时禁用，仅验证M1和M2
+// import MedicalRecordUploadPage from './pages/MedicalRecordUploadPage';
+// import MedicationSchedulePage from './pages/MedicationSchedulePage';
+// import type { ExtractedMedication } from './types/MedicalRecord.types';
 import './i18n';
 import './App.css';
 
-// 页面类型
-type PageType = 'login' | 'register' | 'healthProfile' | 'home' | 'uploadRecord' | 'schedules';
+// 页面类型 - 仅M1和M2
+type PageType = 'login' | 'register' | 'healthProfile' | 'home';
 
 /**
  * 应用主组件
@@ -28,7 +29,6 @@ function App() {
   const { t, i18n } = useTranslation();
   const { isAuthenticated, isLoading, user, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState<PageType>('login');
-  const [extractedMedications, setExtractedMedications] = useState<ExtractedMedication[]>([]);
 
   /**
    * 切换语言
@@ -36,16 +36,6 @@ function App() {
   const handleLanguageChange = (lang: string) => {
     i18n.changeLanguage(lang);
   };
-
-  /**
-   * 处理病例识别完成
-   */
-  const handleRecordComplete = useCallback((medications: ExtractedMedication[]) => {
-    setExtractedMedications(medications);
-    console.log('[App] 识别到的药物:', medications);
-    // TODO: 保存到本地存储，创建服药计划
-    setCurrentPage('home');
-  }, []);
 
   /**
    * 处理登出
@@ -120,34 +110,13 @@ function App() {
         />
       )}
 
-      {currentPage === 'uploadRecord' && (
-        <MedicalRecordUploadPage
-          onComplete={handleRecordComplete}
-          onBack={() => setCurrentPage('home')}
-        />
-      )}
-
-      {currentPage === 'schedules' && (
-        <MedicationSchedulePage
-          onBack={() => setCurrentPage('home')}
-        />
-      )}
-
       {currentPage === 'home' && (
         <div className="home-page">
           <h1>🏠 {t('app.welcome', { name: user?.displayName || t('app.user') })}</h1>
           <p>{t('app.homeDescription')}</p>
 
-          {/* 主要功能按钮 */}
+          {/* M1和M2验证完成后的主页 */}
           <div className="home-actions">
-            <button
-              className="action-button primary"
-              onClick={() => setCurrentPage('uploadRecord')}
-            >
-              <span className="icon">📋</span>
-              <span className="label">{t('app.uploadRecord')}</span>
-            </button>
-
             <button
               className="action-button"
               onClick={() => setCurrentPage('healthProfile')}
@@ -155,31 +124,7 @@ function App() {
               <span className="icon">👤</span>
               <span className="label">{t('app.editProfile')}</span>
             </button>
-
-            <button
-              className="action-button"
-              onClick={() => setCurrentPage('schedules')}
-            >
-              <span className="icon">⏰</span>
-              <span className="label">{t('app.schedules')}</span>
-            </button>
           </div>
-
-          {/* 已识别的药物 */}
-          {extractedMedications.length > 0 && (
-            <div className="medications-summary">
-              <h3>💊 当前用药</h3>
-              <ul>
-                {extractedMedications.map((med, idx) => (
-                  <li key={idx}>
-                    <strong>{med.name}</strong>
-                    {med.dosage && <span> - {med.dosage}</span>}
-                    {med.frequency && <span> ({med.frequency})</span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
 
           {/* 登出按钮 */}
           <button className="logout-button" onClick={handleLogout}>
