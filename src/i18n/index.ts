@@ -25,6 +25,11 @@ const resources = {
                 next: '下一步',
                 back: '返回',
                 skip: '跳过',
+                welcome: '欢迎, {{name}}!',
+                user: '用户',
+                homeDescription: '健康档案已完成，可以开始使用用药助手了。',
+                uploadRecord: '上传病例',
+                editProfile: '编辑健康档案',
             },
             // 认证相关
             auth: {
@@ -90,6 +95,11 @@ const resources = {
                 next: '下一步',
                 back: '返回',
                 skip: '跳過',
+                welcome: '歡迎, {{name}}!',
+                user: '用戶',
+                homeDescription: '健康檔案已完成，可以開始使用用藥助手了。',
+                uploadRecord: '上傳病例',
+                editProfile: '編輯健康檔案',
             },
             auth: {
                 login: '登入',
@@ -152,6 +162,11 @@ const resources = {
                 next: 'Next',
                 back: 'Back',
                 skip: 'Skip',
+                welcome: 'Welcome, {{name}}!',
+                user: 'User',
+                homeDescription: 'Health profile completed. Start using the medication assistant.',
+                uploadRecord: 'Upload Record',
+                editProfile: 'Edit Profile',
             },
             auth: {
                 login: 'Login',

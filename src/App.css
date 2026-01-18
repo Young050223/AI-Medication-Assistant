@@ -206,19 +206,109 @@ body {
 }
 
 .home-page h1 {
-  font-size: 32px;
-  margin-bottom: 16px;
+  font-size: 28px;
+  margin-bottom: 12px;
 }
 
 .home-page p {
-  font-size: 18px;
+  font-size: 16px;
   margin-bottom: 32px;
   opacity: 0.9;
 }
 
-.home-page .primary-button {
-  background: #ffffff;
+/* 主页操作按钮 */
+.home-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 300px;
+  margin-bottom: 32px;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px 24px;
+  font-size: 20px;
+  font-weight: 700;
   color: #667eea;
+  background: #ffffff;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.action-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.action-button.primary {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+}
+
+.action-button .icon {
+  font-size: 28px;
+}
+
+.action-button .label {
+  flex: 1;
+  text-align: left;
+}
+
+/* 药物汇总 */
+.medications-summary {
+  width: 100%;
+  max-width: 400px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.medications-summary h3 {
+  font-size: 18px;
+  margin: 0 0 12px 0;
+}
+
+.medications-summary ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.medications-summary li {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 16px;
+}
+
+.medications-summary li:last-child {
+  border-bottom: none;
+}
+
+/* 登出按钮 */
+.logout-button {
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #ffffff;
 }
 
 /* 响应式设计 */
