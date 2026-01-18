@@ -9,10 +9,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Supabase配置
-// 注意: 这些值需要替换为实际的Supabase项目配置
-// 可以从 https://supabase.com/dashboard 获取
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
+// 优先从环境变量读取，否则使用默认值
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://nvxjvbkynxuzigxzaevq.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_tQSczX4Vmf-YSqqdl6rIAA_L67TfK5T';
 
 /**
  * Supabase客户端单例
@@ -34,10 +33,7 @@ export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON
  * @returns 配置是否有效
  */
 export const isSupabaseConfigured = (): boolean => {
-    return (
-        SUPABASE_URL !== 'https://your-project.supabase.co' &&
-        SUPABASE_ANON_KEY !== 'your-anon-key'
-    );
+    return SUPABASE_URL.includes('supabase.co') && SUPABASE_ANON_KEY.length > 10;
 };
 
 export default supabase;

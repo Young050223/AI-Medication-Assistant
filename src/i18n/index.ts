@@ -30,6 +30,7 @@ const resources = {
                 homeDescription: '健康档案已完成，可以开始使用用药助手了。',
                 uploadRecord: '上传病例',
                 editProfile: '编辑健康档案',
+                schedules: '服药计划',
             },
             // 认证相关
             auth: {
@@ -100,6 +101,7 @@ const resources = {
                 homeDescription: '健康檔案已完成，可以開始使用用藥助手了。',
                 uploadRecord: '上傳病例',
                 editProfile: '編輯健康檔案',
+                schedules: '服藥計劃',
             },
             auth: {
                 login: '登入',
@@ -167,6 +169,7 @@ const resources = {
                 homeDescription: 'Health profile completed. Start using the medication assistant.',
                 uploadRecord: 'Upload Record',
                 editProfile: 'Edit Profile',
+                schedules: 'Medication Schedules',
             },
             auth: {
                 login: 'Login',

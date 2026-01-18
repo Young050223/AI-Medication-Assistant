@@ -13,12 +13,13 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import HealthProfilePage from './pages/HealthProfilePage';
 import MedicalRecordUploadPage from './pages/MedicalRecordUploadPage';
+import MedicationSchedulePage from './pages/MedicationSchedulePage';
 import type { ExtractedMedication } from './types/MedicalRecord.types';
 import './i18n';
 import './App.css';
 
 // 页面类型
-type PageType = 'login' | 'register' | 'healthProfile' | 'home' | 'uploadRecord';
+type PageType = 'login' | 'register' | 'healthProfile' | 'home' | 'uploadRecord' | 'schedules';
 
 /**
  * 应用主组件
@@ -126,6 +127,12 @@ function App() {
         />
       )}
 
+      {currentPage === 'schedules' && (
+        <MedicationSchedulePage
+          onBack={() => setCurrentPage('home')}
+        />
+      )}
+
       {currentPage === 'home' && (
         <div className="home-page">
           <h1>🏠 {t('app.welcome', { name: user?.displayName || t('app.user') })}</h1>
@@ -147,6 +154,14 @@ function App() {
             >
               <span className="icon">👤</span>
               <span className="label">{t('app.editProfile')}</span>
+            </button>
+
+            <button
+              className="action-button"
+              onClick={() => setCurrentPage('schedules')}
+            >
+              <span className="icon">⏰</span>
+              <span className="label">{t('app.schedules')}</span>
             </button>
           </div>
 
