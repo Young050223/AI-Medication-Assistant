@@ -2,7 +2,8 @@
 
 > **项目名称**: AI用药助手  
 > **开始日期**: 2026-01-17  
-> **当前版本**: v0.0.1 (规划阶段)
+> **当前版本**: v0.2.1 (核心功能开发中)  
+> **最后更新**: 2026-02-03
 
 ---
 
@@ -56,12 +57,12 @@
 | M1 | 用户认证与注册 | P0 | ✅ 已完成 | ✅ |
 | M2 | 健康档案管理（上传病例前必填） | P0 | ✅ 已完成 | ✅ |
 | M3 | 病例识别(OCR) | P0 | ✅ 已完成 | ⬜ |
-| M4 | 服药计划管理 | P0 | 🔲 待开发 | ⬜ |
-| M5 | 服药追踪记录（含确认按钮） | P0 | 🔲 待开发 | ⬜ |
-| M6 | 服药反馈收集 | P1 | 🔲 待开发 | ⬜ |
+| M4 | 服药计划管理 | P0 | ✅ 已完成 | ⬜ |
+| M5 | 服药追踪记录（含确认按钮） | P0 | � 开发中 | ⬜ |
+| M6 | 服药反馈收集 | P1 | ✅ 已完成 | ⬜ |
 | M7 | AI分析与预警（含食物/饮品禁忌） | P0 | 🔲 待开发 | ⬜ |
 | M8 | 医生报告生成（含处方指引） | P1 | 🔲 待开发 | ⬜ |
-| M9 | 多语言支持（含全局切换按钮） | P1 | 🔲 待开发 | ⬜ |
+| M9 | 多语言支持（含全局切换按钮） | P1 | ✅ 已完成 | ⬜ |
 | M10 | 家庭账户 | P2 | 🔲 待开发 | ⬜ |
 | M11 | 付费功能（订阅制） | P3 | 🔲 待开发 | ⬜ |
 | M12 | 隐私安全 | P0 | 🔲 待开发 | ⬜ |
@@ -124,6 +125,155 @@
 - [ ] 项目初始化（Capacitor + React）
 - [ ] Supabase项目创建与配置
 - [ ] 基础目录结构搭建
+
+---
+
+### 2026-01-18 ~ 2026-01-24 (Week 1)
+
+#### 完成工作
+- [x] 项目初始化 (Capacitor + React + TypeScript + Vite)
+- [x] Supabase 项目创建与配置
+- [x] 基础目录结构搭建
+- [x] **M1 用户认证与注册模块**
+  - `LoginPage.tsx` / `LoginPage.css` - 登录页面
+  - `RegisterPage.tsx` / `RegisterPage.css` - 注册页面
+  - `useAuth.ts` - 认证 Hook
+  - Supabase Auth 集成
+- [x] **M2 健康档案管理模块**
+  - `HealthProfilePage.tsx` / `HealthProfilePage.css` - 健康档案页面
+  - `useHealthProfile.ts` - 健康档案 Hook
+  - 本地加密存储实现
+
+#### 技术实现
+| 模块 | 文件 | 说明 |
+|------|------|------|
+| 认证 | `src/hooks/user/useAuth.ts` | Supabase Auth 封装 |
+| 健康档案 | `src/hooks/user/useHealthProfile.ts` | 本地存储 + 加密 |
+| 页面 | `src/pages/LoginPage.tsx` | 老年友好登录界面 |
+| 页面 | `src/pages/RegisterPage.tsx` | 手机号/邮箱注册 |
+| 页面 | `src/pages/HealthProfilePage.tsx` | 健康信息录入 |
+
+---
+
+### 2026-01-25 ~ 2026-01-27 (Week 2 前半)
+
+#### 完成工作
+- [x] **M3 病例识别(OCR)模块**
+  - `MedicalRecordUploadPage.tsx` / `MedicalRecordUploadPage.css` - 病例上传页面
+  - `useMedicationExtractor.ts` - 药物信息提取 Hook
+  - 相机/相册集成 (`@capacitor/camera`)
+  - OCR 识别集成
+- [x] **着陆页与导航系统**
+  - `LandingPage.tsx` / `LandingPage.css` - 首页着陆页
+  - 底部固定导航栏 (BottomNav)
+  - 登出功能集成
+
+#### 技术实现
+| 模块 | 文件 | 说明 |
+|------|------|------|
+| OCR | `src/hooks/medication/useMedicationExtractor.ts` | 药物信息提取 |
+| 页面 | `src/pages/MedicalRecordUploadPage.tsx` | 拍照/相册上传 |
+| 页面 | `src/pages/LandingPage.tsx` | 老年友好首页 |
+| 路由 | `src/App.tsx` | 路由配置与守卫 |
+
+---
+
+### 2026-01-28 (Day 12)
+
+#### 完成工作
+- [x] **M4 服药计划管理模块**
+  - `MedicationSchedulePage.tsx` / `MedicationSchedulePage.css` - 服药计划页面
+  - `useMedicationSchedule.ts` - 服药计划 Hook
+  - 药物列表展示
+  - 服药时间提醒配置
+- [x] **M6 服药反馈收集模块** (开始)
+  - `MedicationFeedbackPage.tsx` / `MedicationFeedbackPage.css` - 反馈页面
+  - `useMedicationFeedback.ts` - 反馈收集 Hook
+  - `MedicationFeedback.types.ts` - 类型定义
+  - 语音识别集成 (`@capgo/capacitor-speech-recognition`)
+
+#### 技术实现
+| 模块 | 文件 | 说明 |
+|------|------|------|
+| 服药计划 | `src/hooks/medication/useMedicationSchedule.ts` | 计划管理逻辑 |
+| 服药反馈 | `src/hooks/medication/useMedicationFeedback.ts` | 反馈收集逻辑 |
+| 类型 | `src/types/MedicationFeedback.types.ts` | 反馈数据类型 |
+| 页面 | `src/pages/MedicationSchedulePage.tsx` | 服药计划界面 |
+| 页面 | `src/pages/MedicationFeedbackPage.tsx` | 语音/文字反馈 |
+
+---
+
+### 2026-01-29 ~ 2026-01-30 (Day 13-14)
+
+#### 完成工作
+- [x] **M6 服药反馈收集模块** (完成)
+  - 语音输入功能完善
+  - 反馈历史记录
+  - 老年友好 UI 优化
+- [x] **M9 多语言支持模块** (完成)
+  - i18next + i18next-browser-languagedetector 集成
+  - 系统语言自动检测
+  - 简中/繁中/英文翻译资源
+  - 所有页面国际化
+  - 首页同步机制修复
+
+---
+
+### 2026-02-03 (Day 18) - 当前
+
+#### 今日工作
+- [/] **M5 服药追踪记录模块** (进行中)
+  - 一键确认服药按钮
+  - 服药状态追踪
+
+#### 下一步计划
+- [ ] 完成 M5 服药追踪记录模块
+- [ ] M7 AI分析与预警模块
+- [ ] 集成测试与 iOS 模拟器验证
+
+---
+
+## 📊 当前进度概览
+
+### 模块完成状态 (截至 2026-02-03)
+```
+M1 用户认证     ████████████████████ 100% ✅
+M2 健康档案     ████████████████████ 100% ✅
+M3 病例OCR      ████████████████████ 100% ✅
+M4 服药计划     ████████████████████ 100% ✅
+M5 服药追踪     ██████████░░░░░░░░░░  50% 🔨
+M6 服药反馈     ████████████████████ 100% ✅
+M7 AI预警       ░░░░░░░░░░░░░░░░░░░░   0% 🔲
+M8 医生报告     ░░░░░░░░░░░░░░░░░░░░   0% 🔲
+M9 多语言       ████████████████████ 100% ✅
+M10 家庭账户    ░░░░░░░░░░░░░░░░░░░░   0% 🔲
+M11 付费功能    ░░░░░░░░░░░░░░░░░░░░   0% 🔲
+M12 隐私安全    ░░░░░░░░░░░░░░░░░░░░   0% 🔲
+```
+
+### 代码结构
+```
+src/
+├── hooks/
+│   ├── common/          # 通用 Hooks
+│   ├── medication/      # 药物相关 Hooks
+│   │   ├── useMedicationExtractor.ts
+│   │   ├── useMedicationFeedback.ts
+│   │   └── useMedicationSchedule.ts
+│   └── user/            # 用户相关 Hooks
+│       ├── useAuth.ts
+│       └── useHealthProfile.ts
+├── pages/               # 页面组件
+│   ├── HealthProfilePage.tsx
+│   ├── LandingPage.tsx
+│   ├── LoginPage.tsx
+│   ├── MedicalRecordUploadPage.tsx
+│   ├── MedicationFeedbackPage.tsx
+│   ├── MedicationSchedulePage.tsx
+│   └── RegisterPage.tsx
+└── types/               # 类型定义
+    └── MedicationFeedback.types.ts
+```
 
 ---
 

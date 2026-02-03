@@ -1,0 +1,402 @@
+/**
+ * @file LandingPage.css
+ * @description Landing主页样式 - 温和、专业、人性化的医疗健康风格
+ * @author AI用药助手开发团队
+ * @created 2026-01-28
+ */
+
+.landing-page {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #E8F4F8 0%, #F5F9FA 30%, #FFFFFF 100%);
+    padding: 0 16px;
+    padding-top: env(safe-area-inset-top, 20px);
+}
+
+/* 顶部问候区 */
+.landing-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 24px 0 16px;
+}
+
+.greeting-section {
+    flex: 1;
+}
+
+.greeting-text {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1C3D5A;
+    margin: 0 0 6px 0;
+    letter-spacing: -0.5px;
+}
+
+.date-text {
+    font-size: 14px;
+    color: #6B8299;
+    margin: 0;
+    font-weight: 500;
+}
+
+.header-avatar {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, #4A90A4 0%, #68B3A4 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(74, 144, 164, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.header-avatar:active {
+    transform: scale(0.95);
+}
+
+.avatar-icon {
+    font-size: 22px;
+    filter: brightness(0) invert(1);
+}
+
+/* 用药提醒卡片 */
+.reminder-card {
+    background: linear-gradient(135deg, #4A90A4 0%, #68B3A4 100%);
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 32px rgba(74, 144, 164, 0.25);
+    color: #ffffff;
+}
+
+.reminder-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.reminder-icon {
+    font-size: 28px;
+}
+
+.reminder-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.reminder-stats {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    padding: 16px 0;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 14px;
+    margin-bottom: 12px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.stat-number {
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.stat-number.pending {
+    color: #FFE066;
+}
+
+.stat-number.completed {
+    color: #A8E6CF;
+}
+
+.stat-label {
+    font-size: 13px;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+.stat-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.next-reminder {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    font-size: 14px;
+}
+
+.next-label {
+    opacity: 0.85;
+}
+
+.next-time {
+    font-weight: 600;
+}
+
+/* 区块标题 */
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1C3D5A;
+    margin: 0 0 14px 0;
+}
+
+/* 快捷功能区 */
+.quick-actions {
+    margin-bottom: 28px;
+}
+
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.action-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 18px 16px;
+    background: #ffffff;
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    text-align: left;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.action-card:active {
+    transform: scale(0.97);
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+}
+
+.action-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+}
+
+.action-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1C3D5A;
+    margin-bottom: 4px;
+}
+
+.action-desc {
+    font-size: 12px;
+    color: #8BA4B8;
+    line-height: 1.4;
+}
+
+/* 最近记录 */
+.recent-records {
+    margin-bottom: 24px;
+}
+
+.records-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.record-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    transition: background 0.2s ease;
+}
+
+.record-item.taken {
+    opacity: 0.65;
+}
+
+.record-status {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.status-icon {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.status-icon.done {
+    color: #4CAF50;
+}
+
+.status-icon.pending {
+    color: #BDBDBD;
+}
+
+.status-icon.missed {
+    color: #F44336;
+}
+
+.record-item.missed {
+    opacity: 0.7;
+    background: #FFF5F5;
+}
+
+.missed-tag {
+    color: #F44336;
+    font-size: 12px;
+}
+
+.stat-number.missed {
+    color: #F44336;
+}
+
+.loading-hint,
+.empty-hint {
+    text-align: center;
+    padding: 16px;
+    color: #8BA4B8;
+    font-size: 14px;
+}
+
+.record-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.record-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1C3D5A;
+}
+
+.record-time {
+    font-size: 13px;
+    color: #8BA4B8;
+}
+
+.take-btn {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+    background: linear-gradient(135deg, #4A90A4 0%, #68B3A4 100%);
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.take-btn:active {
+    transform: scale(0.95);
+}
+
+/* 退出登录区域 */
+.logout-section {
+    margin-top: 8px;
+    margin-bottom: 16px;
+}
+
+.logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px 20px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #DC3545;
+    background: #FFF5F5;
+    border: 1px solid #FFDDDD;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.logout-btn:active {
+    background: #FFEEEE;
+    transform: scale(0.98);
+}
+
+.logout-icon {
+    font-size: 18px;
+}
+
+/* 底部导航占位 */
+.nav-spacer {
+    height: 100px;
+}
+
+/* 深色模式 */
+@media (prefers-color-scheme: dark) {
+    .landing-page {
+        background: linear-gradient(180deg, #1A2E3D 0%, #0F1C24 30%, #0A1419 100%);
+    }
+
+    .greeting-text {
+        color: #E8F4F8;
+    }
+
+    .date-text {
+        color: #8BA4B8;
+    }
+
+    .section-title {
+        color: #E8F4F8;
+    }
+
+    .action-card {
+        background: #1C2D3A;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .action-label {
+        color: #E8F4F8;
+    }
+
+    .action-desc {
+        color: #6B8299;
+    }
+
+    .record-item {
+        background: #1C2D3A;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .record-name {
+        color: #E8F4F8;
+    }
+}
+
+/* 响应式布局 */
+@media (min-width: 480px) {
+    .landing-page {
+        max-width: 480px;
+        margin: 0 auto;
+    }
+}

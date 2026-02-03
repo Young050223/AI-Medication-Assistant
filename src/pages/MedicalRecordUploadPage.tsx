@@ -3,7 +3,7 @@
  * @description 病例上传页面 - 拍照/选择图片识别用药信息
  * @author AI用药助手开发团队
  * @created 2026-01-18
- * @modified 2026-01-18
+ * @modified 2026-01-30 - 国际化支持
  */
 
 import { useState, useCallback } from 'react';
@@ -24,7 +24,7 @@ interface MedicalRecordUploadPageProps {
  * 老年友好设计：大按钮、清晰的步骤指引
  */
 export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUploadPageProps) {
-    useTranslation();
+    const { t } = useTranslation();
     const { imageUri, isCapturing, takePhoto, pickFromGallery, clearImage } = useCamera();
     const { status, result, error: extractError, extractFromImage, clearResult } = useMedicationExtractor();
     const { isProfileComplete } = useHealthProfile();
@@ -123,10 +123,10 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
             <div className="record-upload-page">
                 <div className="profile-required">
                     <div className="icon">📋</div>
-                    <h2>请先完成健康档案</h2>
-                    <p>上传病例前，需要先填写您的基本健康信息</p>
+                    <h2>{t('upload.profileRequired')}</h2>
+                    <p>{t('upload.profileRequiredDesc')}</p>
                     <button className="primary-button" onClick={onBack}>
-                        去填写健康档案
+                        {t('upload.goToProfile')}
                     </button>
                 </div>
             </div>
@@ -138,17 +138,17 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
             {/* 头部 */}
             <div className="page-header">
                 <button className="back-button" onClick={onBack}>
-                    ← 返回
+                    ← {t('app.back')}
                 </button>
-                <h1 className="page-title">上传病例</h1>
+                <h1 className="page-title">{t('upload.title')}</h1>
             </div>
 
             <div className="upload-container">
                 {/* 步骤1：拍照/选择图片 */}
                 {!imageUri && (
                     <div className="upload-section">
-                        <h2 className="section-title">📸 第一步：上传病例照片</h2>
-                        <p className="section-hint">请拍摄或选择您的处方单、病历照片</p>
+                        <h2 className="section-title">📸 {t('upload.step1Title')}</h2>
+                        <p className="section-hint">{t('upload.step1Hint')}</p>
 
                         <div className="upload-buttons">
                             <button
@@ -157,7 +157,7 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
                                 disabled={isCapturing}
                             >
                                 <span className="icon">📷</span>
-                                <span className="label">拍照</span>
+                                <span className="label">{t('upload.takePhoto')}</span>
                             </button>
 
                             <button
@@ -166,7 +166,7 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
                                 disabled={isCapturing}
                             >
                                 <span className="icon">🖼️</span>
-                                <span className="label">从相册选择</span>
+                                <span className="label">{t('upload.fromGallery')}</span>
                             </button>
                         </div>
                     </div>
@@ -175,22 +175,22 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
                 {/* 步骤2：预览和识别 */}
                 {imageUri && !showResult && (
                     <div className="preview-section">
-                        <h2 className="section-title">👁️ 第二步：确认照片</h2>
+                        <h2 className="section-title">👁️ {t('upload.step2Title')}</h2>
 
                         <div className="image-preview">
-                            <img src={imageUri} alt="病例照片" />
+                            <img src={imageUri} alt="Medical record" />
                         </div>
 
                         <div className="preview-actions">
                             <button className="secondary-button" onClick={handleRetake}>
-                                重新拍照
+                                {t('upload.retake')}
                             </button>
                             <button
                                 className="primary-button"
                                 onClick={handleRecognize}
                                 disabled={status === 'processing'}
                             >
-                                {status === 'processing' ? '识别中...' : '开始识别'}
+                                {status === 'processing' ? t('upload.recognizing') : t('upload.startRecognize')}
                             </button>
                         </div>
 
@@ -203,15 +203,15 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
                 {/* 步骤3：识别结果 */}
                 {showResult && result && (
                     <div className="result-section">
-                        <h2 className="section-title">💊 第三步：确认用药信息</h2>
-                        <p className="section-hint">请核对以下识别结果，可以手动修改</p>
+                        <h2 className="section-title">💊 {t('upload.step3Title')}</h2>
+                        <p className="section-hint">{t('upload.step3Hint')}</p>
 
                         {/* 药物列表 */}
                         <div className="medications-list">
                             {editedMedications.map((med, index) => (
                                 <div key={index} className="medication-card">
                                     <div className="card-header">
-                                        <span className="med-number">药物 {index + 1}</span>
+                                        <span className="med-number">{t('upload.medicationNumber', { number: index + 1 })}</span>
                                         <button
                                             className="remove-button"
                                             onClick={() => handleRemoveMedication(index)}
@@ -221,42 +221,42 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
                                     </div>
 
                                     <div className="form-group">
-                                        <label>药物名称</label>
+                                        <label>{t('upload.medicationName')}</label>
                                         <input
                                             type="text"
                                             className="form-input"
                                             value={med.name}
                                             onChange={(e) => handleUpdateMedication(index, 'name', e.target.value)}
-                                            placeholder="请输入药物名称"
+                                            placeholder={t('upload.medicationNamePlaceholder')}
                                         />
                                     </div>
 
                                     <div className="form-row">
                                         <div className="form-group half">
-                                            <label>剂量</label>
+                                            <label>{t('upload.dosage')}</label>
                                             <input
                                                 type="text"
                                                 className="form-input"
                                                 value={med.dosage || ''}
                                                 onChange={(e) => handleUpdateMedication(index, 'dosage', e.target.value)}
-                                                placeholder="如：0.5g"
+                                                placeholder={t('upload.dosagePlaceholder')}
                                             />
                                         </div>
                                         <div className="form-group half">
-                                            <label>服用频率</label>
+                                            <label>{t('upload.frequencyLabel')}</label>
                                             <input
                                                 type="text"
                                                 className="form-input"
                                                 value={med.frequency || ''}
                                                 onChange={(e) => handleUpdateMedication(index, 'frequency', e.target.value)}
-                                                placeholder="如：每日3次"
+                                                placeholder={t('upload.frequencyPlaceholder')}
                                             />
                                         </div>
                                     </div>
 
                                     {med.instructions && (
                                         <div className="form-group">
-                                            <label>用法说明</label>
+                                            <label>{t('upload.instructionsLabel')}</label>
                                             <input
                                                 type="text"
                                                 className="form-input"
@@ -270,21 +270,21 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
 
                             {/* 添加药物按钮 */}
                             <button className="add-medication-button" onClick={handleAddMedication}>
-                                + 手动添加药物
+                                + {t('upload.addMedication')}
                             </button>
                         </div>
 
                         {/* 确认按钮 */}
                         <div className="result-actions">
                             <button className="secondary-button" onClick={handleRetake}>
-                                重新上传
+                                {t('upload.reupload')}
                             </button>
                             <button
                                 className="primary-button"
                                 onClick={handleConfirm}
                                 disabled={editedMedications.length === 0}
                             >
-                                确认并保存
+                                {t('upload.confirmAndSave')}
                             </button>
                         </div>
                     </div>

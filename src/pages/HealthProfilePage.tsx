@@ -80,19 +80,19 @@ export function HealthProfilePage({ onComplete }: HealthProfilePageProps) {
 
         // 验证必填项
         if (!formData.birthDate) {
-            setFormError('请填写出生日期');
+            setFormError(t('healthProfile.birthDateRequired'));
             return;
         }
         if (!formData.gender) {
-            setFormError('请选择性别');
+            setFormError(t('healthProfile.genderRequired'));
             return;
         }
         if (!formData.heightCm) {
-            setFormError('请填写身高');
+            setFormError(t('healthProfile.heightRequired'));
             return;
         }
         if (!formData.weightKg) {
-            setFormError('请填写体重');
+            setFormError(t('healthProfile.weightRequired'));
             return;
         }
 

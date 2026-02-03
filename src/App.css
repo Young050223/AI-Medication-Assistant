@@ -26,6 +26,7 @@ body {
 /* 应用容器 */
 .app {
   min-height: 100vh;
+  width: 100%;
   position: relative;
 }
 
@@ -61,10 +62,18 @@ body {
 .language-switcher {
   position: fixed;
   top: 16px;
+  top: calc(16px + env(safe-area-inset-top, 0px));
   right: 16px;
+  right: calc(16px + env(safe-area-inset-right, 0px));
   display: flex;
   gap: 8px;
   z-index: 1000;
+}
+
+/* 通用页面头部样式 - 支持 iOS 安全区域 */
+.page-header {
+  padding-top: 16px;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
 }
 
 .lang-btn {
@@ -315,7 +324,9 @@ body {
 @media (max-width: 480px) {
   .language-switcher {
     top: 12px;
+    top: calc(12px + env(safe-area-inset-top, 0px));
     right: 12px;
+    right: calc(12px + env(safe-area-inset-right, 0px));
   }
 
   .lang-btn {

@@ -3,23 +3,25 @@
  * @description 服药计划页面 - 查看和管理服药计划
  * @author AI用药助手开发团队
  * @created 2026-01-18
- * @modified 2026-01-18
+ * @modified 2026-01-30 - 国际化支持
  */
 
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMedicationSchedule } from '../hooks/medication/useMedicationSchedule';
 import type { ScheduleFormData } from '../types/MedicationSchedule.types';
+import { FREQUENCY_OPTIONS_KEYS } from '../types/MedicationFeedback.types';
 import './MedicationSchedulePage.css';
 
 interface MedicationSchedulePageProps {
     onBack: () => void;
+    onNavigateToFeedback?: (medicationName: string, scheduleId: string) => void;
 }
 
 /**
  * 服药计划页面
  */
-export function MedicationSchedulePage({ onBack }: MedicationSchedulePageProps) {
+export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: MedicationSchedulePageProps) {
     const { t } = useTranslation();
     const {
         schedules,
@@ -37,7 +39,7 @@ export function MedicationSchedulePage({ onBack }: MedicationSchedulePageProps) 
     const [formData, setFormData] = useState<ScheduleFormData>({
         medicationName: '',
         medicationDosage: '',
-        frequency: '每日3次',
+        frequency: 'thriceDaily',
         instructions: '',
         reminderTimes: ['08:00', '12:00', '18:00'],
         durationDays: '7',
@@ -88,23 +90,30 @@ export function MedicationSchedulePage({ onBack }: MedicationSchedulePageProps) 
      */
     const handleSubmit = useCallback(async () => {
         if (!formData.medicationName.trim()) {
-            alert('请输入药物名称');
+            alert(t('schedule.medicationNameRequired'));
             return;
         }
 
-        const result = await createSchedule(formData);
+        // 将 frequency key 转换为显示文本用于存储
+        const frequencyText = t(`frequency.${formData.frequency}`);
+        const submitData = {
+            ...formData,
+            frequency: frequencyText,
+        };
+
+        const result = await createSchedule(submitData);
         if (result) {
             setShowAddForm(false);
             setFormData({
                 medicationName: '',
                 medicationDosage: '',
-                frequency: '每日3次',
+                frequency: 'thriceDaily',
                 instructions: '',
                 reminderTimes: ['08:00', '12:00', '18:00'],
                 durationDays: '7',
             });
         }
-    }, [formData, createSchedule]);
+    }, [formData, createSchedule, t]);
 
     /**
      * 标记服药
@@ -117,10 +126,10 @@ export function MedicationSchedulePage({ onBack }: MedicationSchedulePageProps) 
      * 删除计划
      */
     const handleDelete = useCallback(async (id: string) => {
-        if (confirm('确定要删除这个服药计划吗？')) {
+        if (confirm(t('schedule.deleteConfirm'))) {
             await deleteSchedule(id);
         }
-    }, [deleteSchedule]);
+    }, [deleteSchedule, t]);
 
     // 加载中
     if (isLoading) {
@@ -137,9 +146,9 @@ export function MedicationSchedulePage({ onBack }: MedicationSchedulePageProps) 
             {/* 头部 */}
             <div className="page-header schedule-header">
                 <button className="back-button" onClick={onBack}>
-                    ← 返回
+                    ← {t('app.back')}
                 </button>
-                <h1 className="page-title">服药计划</h1>
+                <h1 className="page-title">{t('schedule.title')}</h1>
                 <button
                     className="add-button"
                     onClick={() => setShowAddForm(true)}
@@ -154,16 +163,16 @@ export function MedicationSchedulePage({ onBack }: MedicationSchedulePageProps) 
             {/* 今日计划 */}
             <div className="schedule-container">
                 <section className="schedule-section">
-                    <h2 className="section-title">📅 今日用药</h2>
+                    <h2 className="section-title">📅 {t('schedule.todayMedication')}</h2>
 
                     {todaySchedules.length === 0 ? (
                         <div className="empty-state">
-                            <p>今日暂无用药计划</p>
+                            <p>{t('schedule.noScheduleToday')}</p>
                             <button
                                 className="primary-button"
                                 onClick={() => setShowAddForm(true)}
                             >
-                                添加服药计划
+                                {t('schedule.addSchedule')}
                             </button>
                         </div>
                     ) : (
@@ -195,13 +204,23 @@ export function MedicationSchedulePage({ onBack }: MedicationSchedulePageProps) 
                                                 <span className="reminder-time">{reminder.time}</span>
                                                 <span className="reminder-dosage">{reminder.dosage}</span>
                                                 {reminder.taken ? (
-                                                    <span className="taken-badge">✓ 已服用</span>
+                                                    <div className="taken-actions">
+                                                        <span className="taken-badge">✓ {t('schedule.taken')}</span>
+                                                        {onNavigateToFeedback && (
+                                                            <button
+                                                                className="feedback-btn"
+                                                                onClick={() => onNavigateToFeedback(schedule.medicationName, schedule.id)}
+                                                            >
+                                                                📝 {t('schedule.feedback')}
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 ) : (
                                                     <button
                                                         className="take-btn"
                                                         onClick={() => handleMarkTaken(schedule.id, reminder.id)}
                                                     >
-                                                        确认服用
+                                                        {t('schedule.confirmTake')}
                                                     </button>
                                                 )}
                                             </div>
@@ -216,8 +235,10 @@ export function MedicationSchedulePage({ onBack }: MedicationSchedulePageProps) 
                 {/* 所有计划 */}
                 {schedules.length > todaySchedules.length && (
                     <section className="schedule-section">
-                        <h2 className="section-title">📋 所有计划</h2>
-                        <p className="section-hint">共 {schedules.length} 个计划，今日活跃 {todaySchedules.length} 个</p>
+                        <h2 className="section-title">📋 {t('schedule.allSchedules')}</h2>
+                        <p className="section-hint">
+                            {t('schedule.scheduleCount', { total: schedules.length, active: todaySchedules.length })}
+                        </p>
                     </section>
                 )}
             </div>
@@ -227,7 +248,7 @@ export function MedicationSchedulePage({ onBack }: MedicationSchedulePageProps) 
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <div className="modal-header">
-                            <h2>添加服药计划</h2>
+                            <h2>{t('schedule.addSchedule')}</h2>
                             <button
                                 className="close-btn"
                                 onClick={() => setShowAddForm(false)}
@@ -237,44 +258,44 @@ export function MedicationSchedulePage({ onBack }: MedicationSchedulePageProps) 
                         </div>
 
                         <div className="form-group">
-                            <label>药物名称 *</label>
+                            <label>{t('schedule.medicationName')} *</label>
                             <input
                                 type="text"
                                 className="form-input"
                                 value={formData.medicationName}
                                 onChange={(e) => handleInputChange('medicationName', e.target.value)}
-                                placeholder="如：阿莫西林胶囊"
+                                placeholder={t('schedule.medicationNamePlaceholder')}
                             />
                         </div>
 
                         <div className="form-group">
-                            <label>剂量</label>
+                            <label>{t('schedule.dosage')}</label>
                             <input
                                 type="text"
                                 className="form-input"
                                 value={formData.medicationDosage}
                                 onChange={(e) => handleInputChange('medicationDosage', e.target.value)}
-                                placeholder="如：0.5g / 每次1粒"
+                                placeholder={t('schedule.dosagePlaceholder')}
                             />
                         </div>
 
                         <div className="form-group">
-                            <label>服用频率</label>
+                            <label>{t('schedule.frequency')}</label>
                             <select
                                 className="form-input"
                                 value={formData.frequency}
                                 onChange={(e) => handleInputChange('frequency', e.target.value)}
                             >
-                                <option value="每日1次">每日1次</option>
-                                <option value="每日2次">每日2次</option>
-                                <option value="每日3次">每日3次</option>
-                                <option value="每日4次">每日4次</option>
-                                <option value="需要时">需要时</option>
+                                {FREQUENCY_OPTIONS_KEYS.map(key => (
+                                    <option key={key} value={key}>
+                                        {t(`frequency.${key}`)}
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
                         <div className="form-group">
-                            <label>提醒时间</label>
+                            <label>{t('schedule.reminderTime')}</label>
                             {formData.reminderTimes.map((time, index) => (
                                 <div key={index} className="reminder-time-row">
                                     <input
@@ -297,12 +318,12 @@ export function MedicationSchedulePage({ onBack }: MedicationSchedulePageProps) 
                                 className="add-time-btn"
                                 onClick={handleAddReminderTime}
                             >
-                                + 添加提醒时间
+                                + {t('schedule.addReminderTime')}
                             </button>
                         </div>
 
                         <div className="form-group">
-                            <label>疗程（天）</label>
+                            <label>{t('schedule.duration')}</label>
                             <input
                                 type="number"
                                 className="form-input"
@@ -314,12 +335,12 @@ export function MedicationSchedulePage({ onBack }: MedicationSchedulePageProps) 
                         </div>
 
                         <div className="form-group">
-                            <label>用法说明</label>
+                            <label>{t('schedule.instructions')}</label>
                             <textarea
                                 className="form-textarea"
                                 value={formData.instructions}
                                 onChange={(e) => handleInputChange('instructions', e.target.value)}
-                                placeholder="如：饭后服用"
+                                placeholder={t('schedule.instructionsPlaceholder')}
                                 rows={2}
                             />
                         </div>
@@ -329,14 +350,14 @@ export function MedicationSchedulePage({ onBack }: MedicationSchedulePageProps) 
                                 className="secondary-button"
                                 onClick={() => setShowAddForm(false)}
                             >
-                                取消
+                                {t('app.cancel')}
                             </button>
                             <button
                                 className="primary-button"
                                 onClick={handleSubmit}
                                 disabled={isSaving}
                             >
-                                {isSaving ? '保存中...' : '保存'}
+                                {isSaving ? t('app.saving') : t('app.save')}
                             </button>
                         </div>
                     </div>

@@ -1,12 +1,13 @@
 /**
  * @file useMedicationSchedule.ts
- * @description 服药计划Hook，提供服药计划的本地加密存储和管理
+ * @description 服药计划Hook，提供服药计划的Supabase云端存储和管理
  * @author AI用药助手开发团队
  * @created 2026-01-18
- * @modified 2026-01-18
+ * @modified 2026-01-24
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { supabase, isSupabaseConfigured } from '../../services/supabase';
 import { useLocalStorage } from '../common/useLocalStorage';
 import { useAuth } from '../user/useAuth';
 import type {
@@ -17,7 +18,7 @@ import type {
     MedicationTimeSlot,
 } from '../../types/MedicationSchedule.types';
 
-// 存储键
+// 本地存储键（备用）
 const SCHEDULES_KEY = 'medication_schedules';
 
 /**
@@ -33,10 +34,44 @@ const getTimeSlot = (time: string): MedicationTimeSlot => {
 };
 
 /**
+ * 将Supabase记录转换为前端类型
+ */
+const transformFromSupabase = (record: any): MedicationSchedule => ({
+    id: record.id,
+    medicationName: record.medication_name,
+    medicationDosage: record.medication_dosage || '',
+    instructions: record.instructions || undefined,
+    frequency: record.frequency || '',
+    reminders: record.reminders || [],
+    durationDays: record.duration_days || undefined,
+    status: record.status || 'active',
+    startDate: record.start_date,
+    endDate: record.end_date || undefined,
+    sourceRecordId: record.source_record_id || undefined,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+});
+
+/**
+ * 将前端类型转换为Supabase记录
+ */
+const transformToSupabase = (schedule: MedicationSchedule, userId: string) => ({
+    user_id: userId,
+    medication_name: schedule.medicationName,
+    medication_dosage: schedule.medicationDosage,
+    instructions: schedule.instructions || null,
+    frequency: schedule.frequency,
+    reminders: schedule.reminders,
+    duration_days: schedule.durationDays || null,
+    status: schedule.status,
+    start_date: schedule.startDate,
+    end_date: schedule.endDate || null,
+    source_record_id: schedule.sourceRecordId || null,
+});
+
+/**
  * 服药计划Hook
- * 提供服药计划的增删改查功能，数据本地加密存储
- * 
- * @returns {UseMedicationScheduleReturn} 服药计划状态和方法
+ * 优先使用Supabase云端存储，降级使用本地存储
  */
 export function useMedicationSchedule(): UseMedicationScheduleReturn {
     const { user } = useAuth();
@@ -56,22 +91,52 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
     }, [user?.id]);
 
     /**
-     * 加载所有服药计划
+     * 从Supabase加载服药计划
+     */
+    const loadFromSupabase = useCallback(async (userId: string): Promise<MedicationSchedule[]> => {
+        const { data, error } = await supabase
+            .from('medication_schedules')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return (data || []).map(transformFromSupabase);
+    }, []);
+
+    /**
+     * 加载所有服药计划（优先Supabase，降级本地）
      */
     const loadSchedules = useCallback(async () => {
+        if (!user?.id) {
+            setIsLoading(false);
+            return;
+        }
+
         try {
             setIsLoading(true);
             setError(null);
 
+            // 优先尝试Supabase
+            if (isSupabaseConfigured()) {
+                try {
+                    const supabaseSchedules = await loadFromSupabase(user.id);
+                    setSchedules(supabaseSchedules);
+                    console.log('[useMedicationSchedule] Supabase: 加载成功:', supabaseSchedules.length, '个计划');
+                    return;
+                } catch (err: any) {
+                    console.warn('[useMedicationSchedule] Supabase加载失败，降级到本地:', err.message);
+                }
+            }
+
+            // 降级到本地存储
             const key = getStorageKey();
             const storedSchedules = await getItem<MedicationSchedule[]>(key);
-
             if (storedSchedules) {
                 setSchedules(storedSchedules);
-                console.log('[useMedicationSchedule] 加载成功:', storedSchedules.length, '个计划');
+                console.log('[useMedicationSchedule] 本地: 加载成功:', storedSchedules.length, '个计划');
             } else {
                 setSchedules([]);
-                console.log('[useMedicationSchedule] 未找到服药计划');
             }
         } catch (err: any) {
             console.error('[useMedicationSchedule] 加载失败:', err);
@@ -79,26 +144,62 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         } finally {
             setIsLoading(false);
         }
-    }, [getStorageKey, getItem]);
+    }, [user?.id, getStorageKey, getItem, loadFromSupabase]);
 
     /**
-     * 保存所有服药计划到本地存储
+     * 保存到Supabase
      */
-    const saveSchedules = useCallback(async (newSchedules: MedicationSchedule[]) => {
-        try {
-            const key = getStorageKey();
-            await setItem(key, newSchedules);
-            setSchedules(newSchedules);
-        } catch (err) {
-            console.error('[useMedicationSchedule] 保存失败:', err);
-            throw err;
+    const saveToSupabase = useCallback(async (schedule: MedicationSchedule, userId: string): Promise<MedicationSchedule> => {
+        const record = transformToSupabase(schedule, userId);
+
+        // 检查是否已存在（通过ID格式判断）
+        const isNewRecord = schedule.id.startsWith('schedule_');
+
+        if (isNewRecord) {
+            // 插入新记录
+            const { data, error } = await supabase
+                .from('medication_schedules')
+                .insert(record)
+                .select()
+                .single();
+
+            if (error) throw error;
+            console.log('[useMedicationSchedule] Supabase: 创建成功');
+            return transformFromSupabase(data);
+        } else {
+            // 更新现有记录
+            const { data, error } = await supabase
+                .from('medication_schedules')
+                .update(record)
+                .eq('id', schedule.id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            console.log('[useMedicationSchedule] Supabase: 更新成功');
+            return transformFromSupabase(data);
         }
+    }, []);
+
+    /**
+     * 保存到本地存储（降级方案）
+     */
+    const saveToLocal = useCallback(async (newSchedules: MedicationSchedule[]) => {
+        const key = getStorageKey();
+        await setItem(key, newSchedules);
+        setSchedules(newSchedules);
+        console.log('[useMedicationSchedule] 本地: 保存成功');
     }, [getStorageKey, setItem]);
 
     /**
      * 创建新服药计划
      */
     const createSchedule = useCallback(async (data: ScheduleFormData): Promise<MedicationSchedule | null> => {
+        if (!user?.id) {
+            setError('用户未登录');
+            return null;
+        }
+
         try {
             setIsSaving(true);
             setError(null);
@@ -112,7 +213,7 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
                 taken: false,
             }));
 
-            // 计算结束日期
+            // 计算日期
             const startDate = new Date().toISOString().split('T')[0];
             const durationDays = parseInt(data.durationDays, 10) || undefined;
             let endDate: string | undefined;
@@ -138,11 +239,20 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
                 updatedAt: new Date().toISOString(),
             };
 
-            // 保存
-            const newSchedules = [...schedules, newSchedule];
-            await saveSchedules(newSchedules);
+            // 优先保存到Supabase
+            if (isSupabaseConfigured()) {
+                try {
+                    const savedSchedule = await saveToSupabase(newSchedule, user.id);
+                    setSchedules(prev => [savedSchedule, ...prev]);
+                    return savedSchedule;
+                } catch (err: any) {
+                    console.warn('[useMedicationSchedule] Supabase保存失败，降级到本地:', err.message);
+                }
+            }
 
-            console.log('[useMedicationSchedule] 创建成功:', newSchedule.medicationName);
+            // 降级到本地
+            const newSchedules = [newSchedule, ...schedules];
+            await saveToLocal(newSchedules);
             return newSchedule;
         } catch (err: any) {
             console.error('[useMedicationSchedule] 创建失败:', err);
@@ -151,12 +261,14 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         } finally {
             setIsSaving(false);
         }
-    }, [schedules, saveSchedules]);
+    }, [user?.id, schedules, saveToSupabase, saveToLocal]);
 
     /**
      * 更新服药计划
      */
     const updateSchedule = useCallback(async (id: string, data: Partial<ScheduleFormData>): Promise<boolean> => {
+        if (!user?.id) return false;
+
         try {
             setIsSaving(true);
             setError(null);
@@ -167,18 +279,30 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
                 return false;
             }
 
-            const updated = { ...schedules[index] };
+            const updated: MedicationSchedule = { ...schedules[index] };
             if (data.medicationName) updated.medicationName = data.medicationName;
             if (data.medicationDosage) updated.medicationDosage = data.medicationDosage;
             if (data.frequency) updated.frequency = data.frequency;
             if (data.instructions !== undefined) updated.instructions = data.instructions;
             updated.updatedAt = new Date().toISOString();
 
+            // 优先保存到Supabase
+            if (isSupabaseConfigured()) {
+                try {
+                    const savedSchedule = await saveToSupabase(updated, user.id);
+                    const newSchedules = [...schedules];
+                    newSchedules[index] = savedSchedule;
+                    setSchedules(newSchedules);
+                    return true;
+                } catch (err: any) {
+                    console.warn('[useMedicationSchedule] Supabase更新失败，降级到本地:', err.message);
+                }
+            }
+
+            // 降级到本地
             const newSchedules = [...schedules];
             newSchedules[index] = updated;
-            await saveSchedules(newSchedules);
-
-            console.log('[useMedicationSchedule] 更新成功:', updated.medicationName);
+            await saveToLocal(newSchedules);
             return true;
         } catch (err: any) {
             console.error('[useMedicationSchedule] 更新失败:', err);
@@ -187,20 +311,37 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         } finally {
             setIsSaving(false);
         }
-    }, [schedules, saveSchedules]);
+    }, [user?.id, schedules, saveToSupabase, saveToLocal]);
 
     /**
      * 删除服药计划
      */
     const deleteSchedule = useCallback(async (id: string): Promise<boolean> => {
+        if (!user?.id) return false;
+
         try {
             setIsSaving(true);
             setError(null);
 
-            const newSchedules = schedules.filter(s => s.id !== id);
-            await saveSchedules(newSchedules);
+            // 优先从Supabase删除
+            if (isSupabaseConfigured() && !id.startsWith('schedule_')) {
+                try {
+                    const { error } = await supabase
+                        .from('medication_schedules')
+                        .delete()
+                        .eq('id', id);
 
-            console.log('[useMedicationSchedule] 删除成功');
+                    if (error) throw error;
+                    console.log('[useMedicationSchedule] Supabase: 删除成功');
+                } catch (err: any) {
+                    console.warn('[useMedicationSchedule] Supabase删除失败:', err.message);
+                }
+            }
+
+            // 更新本地状态
+            const newSchedules = schedules.filter(s => s.id !== id);
+            setSchedules(newSchedules);
+            await saveToLocal(newSchedules);
             return true;
         } catch (err: any) {
             console.error('[useMedicationSchedule] 删除失败:', err);
@@ -209,12 +350,14 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         } finally {
             setIsSaving(false);
         }
-    }, [schedules, saveSchedules]);
+    }, [user?.id, schedules, saveToLocal]);
 
     /**
      * 标记为已服用
      */
     const markAsTaken = useCallback(async (scheduleId: string, reminderId: string): Promise<boolean> => {
+        if (!user?.id) return false;
+
         try {
             setError(null);
 
@@ -234,9 +377,20 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
             };
             schedule.updatedAt = new Date().toISOString();
 
+            // 优先保存到Supabase
+            if (isSupabaseConfigured() && !scheduleId.startsWith('schedule_')) {
+                try {
+                    await saveToSupabase(schedule, user.id);
+                } catch (err: any) {
+                    console.warn('[useMedicationSchedule] Supabase标记失败:', err.message);
+                }
+            }
+
+            // 更新状态
             const newSchedules = [...schedules];
             newSchedules[scheduleIndex] = schedule;
-            await saveSchedules(newSchedules);
+            setSchedules(newSchedules);
+            await saveToLocal(newSchedules);
 
             console.log('[useMedicationSchedule] 标记已服用:', schedule.medicationName);
             return true;
@@ -245,7 +399,7 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
             setError('标记失败');
             return false;
         }
-    }, [schedules, saveSchedules]);
+    }, [user?.id, schedules, saveToSupabase, saveToLocal]);
 
     /**
      * 获取今日服药计划

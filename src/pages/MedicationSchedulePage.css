@@ -28,6 +28,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 16px;
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
     background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
     color: #ffffff;
 }
@@ -189,6 +190,29 @@
     font-size: 14px;
     color: #059669;
     font-weight: 600;
+}
+
+.taken-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.feedback-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #667eea;
+    background: #eef2ff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.feedback-btn:hover {
+    background: #667eea;
+    color: white;
 }
 
 .take-btn {

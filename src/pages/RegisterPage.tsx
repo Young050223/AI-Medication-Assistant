@@ -31,12 +31,26 @@ export function RegisterPage({ onNavigateToLogin, onRegisterSuccess }: RegisterP
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [formError, setFormError] = useState('');
+    // DEBUG: 添加屏幕调试日志
+    const [debugLogs, setDebugLogs] = useState<string[]>([]);
+    const addLog = (msg: string) => {
+        const time = new Date().toLocaleTimeString();
+        setDebugLogs(prev => [`${time}: ${msg}`, ...prev].slice(0, 5));
+        console.log(msg);
+    };
 
     /**
      * 处理注册
      */
-    const handleRegister = useCallback(async (e: FormEvent) => {
+    const handleRegister = useCallback(async (e: FormEvent | React.MouseEvent) => {
         e.preventDefault();
+        addLog('Register clicked');
+
+        if (isLoading) {
+            addLog('Ignored: Loading is true');
+            return;
+        }
+
         setFormError('');
         clearError();
 
@@ -59,9 +73,18 @@ export function RegisterPage({ onNavigateToLogin, onRegisterSuccess }: RegisterP
         }
 
         // 执行注册
-        const success = await register({ email, password, displayName });
-        if (success) {
-            onRegisterSuccess();
+        addLog(`Calling register: ${email}`);
+        try {
+            const success = await register({ email, password, displayName });
+            addLog(`Result: ${success}`);
+            if (success) {
+                addLog('Success! Navigating...');
+                onRegisterSuccess();
+            } else {
+                addLog('Failed: Register returned false');
+            }
+        } catch (err: any) {
+            addLog(`Error: ${err.message || String(err)}`);
         }
     }, [displayName, email, password, confirmPassword, register, clearError, onRegisterSuccess, t]);
 
@@ -151,9 +174,27 @@ export function RegisterPage({ onNavigateToLogin, onRegisterSuccess }: RegisterP
                     />
                 </div>
 
+                {/* 调试日志区域 */}
+                <div style={{
+                    position: 'fixed',
+                    top: 50,
+                    left: 0,
+                    right: 0,
+                    background: 'rgba(0,0,0,0.8)',
+                    color: '#0f0',
+                    fontSize: '12px',
+                    padding: '10px',
+                    zIndex: 9999,
+                    pointerEvents: 'none'
+                }}>
+                    <div>Loading: {String(isLoading)}</div>
+                    {debugLogs.map((log, i) => <div key={i}>{log}</div>)}
+                </div>
+
                 {/* 注册按钮 */}
                 <button
-                    type="submit"
+                    type="button"
+                    onClick={handleRegister}
                     className="register-button"
                     disabled={isLoading}
                 >

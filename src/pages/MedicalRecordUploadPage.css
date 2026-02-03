@@ -45,6 +45,7 @@
     display: flex;
     align-items: center;
     padding: 16px;
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
     background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
     color: #ffffff;
 }
