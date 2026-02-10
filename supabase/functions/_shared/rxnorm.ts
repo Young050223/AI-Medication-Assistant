@@ -12,6 +12,7 @@ export interface RxNormConcept {
     name: string;
     tty: string;
     synonym?: string;
+    score?: number;
 }
 
 export interface NormalizationResult {
@@ -46,11 +47,12 @@ export async function findDrugByName(drugName: string): Promise<RxNormConcept[]>
 
     return candidates
         .filter((c: { rxcui?: string; name?: string }) => c.rxcui && c.name)
-        .map((c: { rxcui: string; name: string; tty?: string; synonym?: string }) => ({
+        .map((c: { rxcui: string; name: string; tty?: string; synonym?: string; score?: number }) => ({
             rxcui: c.rxcui,
             name: c.name,
             tty: c.tty || 'UNKNOWN',
             synonym: c.synonym,
+            score: typeof c.score === 'number' ? c.score : undefined,
         }));
 }
 

@@ -18,6 +18,14 @@ export interface AnalyzeDrugRequest {
     language?: 'zh-CN' | 'zh-TW' | 'en';
 }
 
+export interface WorkflowLog {
+    step: string;
+    status: 'start' | 'success' | 'error' | 'skip' | 'info';
+    message: string;
+    timestamp: string;
+    meta?: Record<string, unknown>;
+}
+
 export interface ReactionStat {
     term: string;
     count: number;
@@ -63,6 +71,7 @@ export interface DrugAnalysisResult {
 export interface AnalyzeDrugResponse {
     success: boolean;
     data?: DrugAnalysisResult;
+    workflowLogs?: WorkflowLog[];
     error?: string;
 }
 

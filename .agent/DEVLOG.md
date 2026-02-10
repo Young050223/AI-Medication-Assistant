@@ -78,6 +78,21 @@
 
 ## 📅 开发日志
 
+### 2026-02-03 (追加工作)
+
+#### 今日工作
+- [x] Edge Function `analyze-drug` 增强：OpenAI 翻译对齐 + RxNorm/ DailyMed/ OpenFDA 全链路日志（`workflowLogs` / `workflowOverview`）与 Supabase 落库能力（需 service role key + userId）。
+- [x] 新增自动化验收脚本 `scripts/run-ios-agent-e2e.mjs`，批量用中文药名验证两次 OpenAI + 外部 API；跑通 9/9。
+- [x] Supabase 新增表：`ocr_uploads`、`analyze_requests`、`analyze_workflow_logs`，配置 RLS。
+
+#### 进度/测试
+- 自动化验收：`node scripts/run-ios-agent-e2e.mjs`，9/9 通过（翻译→RxNorm→DailyMed→OpenFDA→总结链路正常）。
+- 手工验证多药名（含弥可保/戴芬等）返回 `aiSummary`，证明 OpenAI 总结调用成功。
+
+#### 风险/待办
+- 需在 Supabase secrets 配置 `SUPABASE_SERVICE_ROLE_KEY`（以及 `SUPABASE_URL`），调用时传 `userId`，日志才会写入表。
+- 部署线上 Edge Function 以开启日志返回与落库；当前线上版本仍未返回 `workflowLogs`。
+
 ### 2026-01-17 (Day 1)
 
 #### 今日工作
