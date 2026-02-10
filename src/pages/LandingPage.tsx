@@ -16,6 +16,7 @@ interface LandingPageProps {
     onNavigateToUpload: () => void;
     onNavigateToSchedules: () => void;
     onNavigateToProfile: () => void;
+    onNavigateToAgentAnalysis: () => void;
     onLogout: () => void;
 }
 
@@ -57,6 +58,7 @@ export function LandingPage({
     onNavigateToUpload,
     onNavigateToSchedules,
     onNavigateToProfile,
+    onNavigateToAgentAnalysis,
     onLogout,
 }: LandingPageProps) {
     const { t, i18n } = useTranslation();
@@ -257,8 +259,8 @@ export function LandingPage({
                         <span className="action-desc">{t('landing.healthProfileDesc', '个人健康信息')}</span>
                     </button>
 
-                    <button className="action-card">
-                        <span className="action-icon">📖</span>
+                    <button className="action-card" onClick={onNavigateToAgentAnalysis}>
+                        <span className="action-icon">🔬</span>
                         <span className="action-label">{t('landing.drugGuide', '用药指南')}</span>
                         <span className="action-desc">{t('landing.drugGuideDesc', '药物知识库')}</span>
                     </button>

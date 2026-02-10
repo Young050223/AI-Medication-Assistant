@@ -12,6 +12,21 @@ dist
 dist-ssr
 *.local
 
+# Environment variables (contains API keys)
+.env
+.env.local
+.env.*.local
+
+# Backup files
+*.bak
+
+# Supabase temp
+supabase/.temp/
+
+# Test scripts
+test-*.mjs
+test-*.js
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

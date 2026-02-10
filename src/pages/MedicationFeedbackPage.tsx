@@ -15,7 +15,6 @@ import {
     MOOD_CONFIG,
     COMMON_SIDE_EFFECTS_KEYS,
     type MoodType,
-    type FeedbackFormData,
     type SideEffectKey
 } from '../types/MedicationFeedback.types';
 import './MedicationFeedbackPage.css';
@@ -123,16 +122,20 @@ export function MedicationFeedbackPage({
             return;
         }
 
-        const formData: FeedbackFormData = {
+        if (!selectedMood) {
+            alert(t('feedback.moodRequired', '请选择您的感受'));
+            return;
+        }
+
+        const feedbackData = {
             medicationName: selectedMedication,
             scheduleId: selectedScheduleId || undefined,
             content: content.trim(),
-            feedbackType: inputMode,
-            mood: selectedMood || undefined,
-            sideEffects: selectedSideEffects.length > 0 ? selectedSideEffects : undefined,
+            mood: selectedMood,
+            sideEffects: selectedSideEffects,
         };
 
-        const result = await createFeedback(formData);
+        const result = await createFeedback(feedbackData);
         if (result) {
             setShowSuccess(true);
             setTimeout(() => {

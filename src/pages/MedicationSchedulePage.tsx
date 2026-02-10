@@ -96,23 +96,37 @@ export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: Medicat
 
         // 将 frequency key 转换为显示文本用于存储
         const frequencyText = t(`frequency.${formData.frequency}`);
-        const submitData = {
-            ...formData,
+        const today = new Date().toISOString().split('T')[0];
+        const durationDays = parseInt(formData.durationDays) || 7;
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + durationDays);
+
+        const scheduleData = {
+            medicationName: formData.medicationName,
+            medicationDosage: formData.medicationDosage,
             frequency: frequencyText,
+            instructions: formData.instructions,
+            startDate: today,
+            endDate: endDate.toISOString().split('T')[0],
+            isActive: true,
+            reminders: formData.reminderTimes.map((time) => ({
+                id: crypto.randomUUID(),
+                time,
+                dosage: formData.medicationDosage,
+                taken: false,
+            })),
         };
 
-        const result = await createSchedule(submitData);
-        if (result) {
-            setShowAddForm(false);
-            setFormData({
-                medicationName: '',
-                medicationDosage: '',
-                frequency: 'thriceDaily',
-                instructions: '',
-                reminderTimes: ['08:00', '12:00', '18:00'],
-                durationDays: '7',
-            });
-        }
+        await createSchedule(scheduleData);
+        setShowAddForm(false);
+        setFormData({
+            medicationName: '',
+            medicationDosage: '',
+            frequency: 'thriceDaily',
+            instructions: '',
+            reminderTimes: ['08:00', '12:00', '18:00'],
+            durationDays: '7',
+        });
     }, [formData, createSchedule, t]);
 
     /**

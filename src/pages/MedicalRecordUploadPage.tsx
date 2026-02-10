@@ -62,8 +62,8 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
         if (!imageUri) return;
 
         const recognitionResult = await extractFromImage(imageUri);
-        if (recognitionResult) {
-            setEditedMedications(recognitionResult.medications);
+        if (recognitionResult && recognitionResult.length > 0) {
+            setEditedMedications(recognitionResult);
             setShowResult(true);
         }
     }, [imageUri, extractFromImage]);
@@ -188,9 +188,9 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
                             <button
                                 className="primary-button"
                                 onClick={handleRecognize}
-                                disabled={status === 'processing'}
+                                disabled={status === 'extracting'}
                             >
-                                {status === 'processing' ? t('upload.recognizing') : t('upload.startRecognize')}
+                                {status === 'extracting' ? t('upload.recognizing') : t('upload.startRecognize')}
                             </button>
                         </div>
 

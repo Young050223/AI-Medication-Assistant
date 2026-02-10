@@ -16,13 +16,14 @@ import MedicalRecordUploadPage from './pages/MedicalRecordUploadPage';
 import MedicationSchedulePage from './pages/MedicationSchedulePage';
 import MedicationFeedbackPage from './pages/MedicationFeedbackPage';
 import LandingPage from './pages/LandingPage';
+import AgentAnalysisPage from './pages/AgentAnalysisPage';
 import BottomNavBar, { type NavItem } from './components/BottomNavBar';
 import type { ExtractedMedication } from './types/MedicalRecord.types';
 import './i18n';
 import './App.css';
 
 // 页面类型
-type PageType = 'login' | 'register' | 'healthProfile' | 'landing' | 'uploadRecord' | 'schedules' | 'profile' | 'feedback';
+type PageType = 'login' | 'register' | 'healthProfile' | 'landing' | 'uploadRecord' | 'schedules' | 'profile' | 'feedback' | 'agentAnalysis';
 
 /**
  * 应用主组件
@@ -30,8 +31,8 @@ type PageType = 'login' | 'register' | 'healthProfile' | 'landing' | 'uploadReco
 function App() {
   const { t, i18n } = useTranslation();
   const { isLoading, user, logout } = useAuth();
-  // 暂时跳过登录，默认进入首页（开发模式）
-  const [currentPage, setCurrentPage] = useState<PageType>('landing');
+  // 根据用户登录状态决定初始页面
+  const [currentPage, setCurrentPage] = useState<PageType>('login');
   const [currentTab, setCurrentTab] = useState<NavItem>('home');
   // 反馈页面所需的预选数据
   const [feedbackMedication, setFeedbackMedication] = useState<string | undefined>();
@@ -117,8 +118,8 @@ function App() {
     );
   }
 
-  // 开发模式：只在用户明确选择登录/注册页面时才显示（暂时跳过认证检查）
-  if (currentPage === 'login' || currentPage === 'register') {
+  // 未登录：显示登录/注册页面
+  if (!user || currentPage === 'login' || currentPage === 'register') {
     return (
       <div className="app">
         <LanguageSwitcher />
@@ -211,8 +212,15 @@ function App() {
           onNavigateToProfile={() => {
             setCurrentPage('healthProfile');
           }}
+          onNavigateToAgentAnalysis={() => {
+            setCurrentPage('agentAnalysis');
+          }}
           onLogout={handleLogout}
         />
+      )}
+
+      {currentPage === 'agentAnalysis' && (
+        <AgentAnalysisPage onBack={() => setCurrentPage('landing')} />
       )}
 
       {currentPage === 'profile' && (
