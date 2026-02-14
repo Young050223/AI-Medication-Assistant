@@ -1,8 +1,6 @@
 /**
  * @file BottomNavBar.css
- * @description 底部导航栏样式 - iOS风格Tab Bar
- * @author AI用药助手开发团队
- * @created 2026-01-28
+ * @description 底部导航栏 — Warm Minimalist
  */
 
 .bottom-nav-bar {
@@ -10,18 +8,16 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 80px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  height: 72px;
+  background: var(--bg-secondary);
   display: flex;
   justify-content: space-around;
   align-items: flex-start;
   padding-top: 8px;
-  padding-bottom: env(safe-area-inset-bottom, 16px);
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  padding-bottom: env(safe-area-inset-bottom, 12px);
+  border-top: 1px solid var(--border-light);
   z-index: 1000;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
 }
 
 .nav-item {
@@ -29,13 +25,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   flex: 1;
-  padding: 8px 0;
+  padding: 6px 0;
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: transform var(--transition-fast);
   position: relative;
   -webkit-tap-highlight-color: transparent;
 }
@@ -45,77 +41,60 @@
 }
 
 .nav-icon {
-  font-size: 26px;
+  font-size: 24px;
   line-height: 1;
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform var(--transition-spring);
 }
 
 .nav-item.active .nav-icon {
-  transform: scale(1.12);
+  transform: scale(1.15);
 }
 
 .nav-label {
   font-size: 11px;
-  font-weight: 500;
-  color: #8E8E93;
+  font-weight: 600;
+  color: var(--text-muted);
   letter-spacing: -0.2px;
-  transition: color 0.2s ease;
+  transition: color var(--transition-fast);
 }
 
 .nav-item.active .nav-label {
-  color: #4A90A4;
-  font-weight: 600;
+  color: var(--accent-sage-deep);
+  font-weight: 700;
 }
 
 .nav-indicator {
   position: absolute;
-  bottom: 4px;
+  top: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 5px;
-  height: 5px;
-  background: linear-gradient(135deg, #4A90A4 0%, #68B3A4 100%);
-  border-radius: 50%;
-  animation: fadeIn 0.3s ease;
+  width: 22px;
+  height: 3px;
+  background: var(--accent-sage);
+  border-radius: 0 0 3px 3px;
+  animation: slideIn 0.25s ease;
 }
 
-@keyframes fadeIn {
+@keyframes slideIn {
   from {
+    width: 0;
     opacity: 0;
-    transform: translateX(-50%) scale(0);
   }
+
   to {
+    width: 22px;
     opacity: 1;
-    transform: translateX(-50%) scale(1);
   }
 }
 
-/* 深色模式支持 */
-@media (prefers-color-scheme: dark) {
-  .bottom-nav-bar {
-    background: rgba(28, 28, 30, 0.92);
-    border-top-color: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
-  }
-
-  .nav-label {
-    color: #8E8E93;
-  }
-
-  .nav-item.active .nav-label {
-    color: #68B3A4;
-  }
-}
-
-/* 横屏模式优化 */
 @media (orientation: landscape) and (max-height: 500px) {
   .bottom-nav-bar {
-    height: 60px;
+    height: 56px;
     padding-top: 4px;
   }
 
   .nav-icon {
-    font-size: 22px;
+    font-size: 20px;
   }
 
   .nav-label {

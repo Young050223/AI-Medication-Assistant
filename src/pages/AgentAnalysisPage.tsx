@@ -8,6 +8,7 @@
 import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAgentAnalysis } from '../hooks/agent/useAgentAnalysis';
+import { IconBack, IconWarning, IconPill, IconClipboard, IconFood, IconGuide, IconStethoscope } from '../components/Icons';
 import './AgentAnalysisPage.css';
 
 interface AgentAnalysisPageProps {
@@ -61,7 +62,7 @@ const AgentAnalysisPage: React.FC<AgentAnalysisPageProps> = ({ onBack }) => {
             {/* 顶部导航 */}
             <header className="agent-header">
                 <button className="back-button" onClick={onBack}>
-                    ← {t('common.back', '返回')}
+                    <IconBack size={16} /> {t('common.back', '返回')}
                 </button>
                 <h1 className="page-title">{t('agent.title', '药物分析')}</h1>
             </header>
@@ -105,7 +106,7 @@ const AgentAnalysisPage: React.FC<AgentAnalysisPageProps> = ({ onBack }) => {
             {error && (
                 <section className="error-section">
                     <div className="error-card">
-                        <span className="error-icon">⚠️</span>
+                        <span className="error-icon"><IconWarning size={20} /></span>
                         <p className="error-message">{error}</p>
                         <button className="retry-button" onClick={handleReset}>
                             {t('agent.retry', '重试')}
@@ -119,7 +120,7 @@ const AgentAnalysisPage: React.FC<AgentAnalysisPageProps> = ({ onBack }) => {
                 <section className="result-section">
                     {/* 药物基本信息 */}
                     <div className="result-card drug-info-card">
-                        <h2 className="card-title">💊 {result.drugName}</h2>
+                        <h2 className="card-title"><IconPill size={20} /> {result.drugName}</h2>
                         {result.normalizedName && result.normalizedName !== result.drugName && (
                             <p className="normalized-name">
                                 {t('agent.standardName', '标准名')}: {result.normalizedName}
@@ -130,7 +131,7 @@ const AgentAnalysisPage: React.FC<AgentAnalysisPageProps> = ({ onBack }) => {
                     {/* 风险警报 */}
                     {riskAlerts.length > 0 && (
                         <div className="result-card alerts-card">
-                            <h3 className="card-subtitle">🚨 {t('agent.riskAlerts', '风险提示')}</h3>
+                            <h3 className="card-subtitle"><IconWarning size={16} /> {t('agent.riskAlerts', '风险提示')}</h3>
                             <div className="alerts-list">
                                 {riskAlerts.map((alert, index) => (
                                     <div
@@ -149,7 +150,7 @@ const AgentAnalysisPage: React.FC<AgentAnalysisPageProps> = ({ onBack }) => {
                     {/* AI总结 */}
                     {result.aiSummary && (
                         <div className="result-card summary-card">
-                            <h3 className="card-subtitle">📋 {t('agent.summary', '分析总结')}</h3>
+                            <h3 className="card-subtitle"><IconClipboard size={16} /> {t('agent.summary', '分析总结')}</h3>
 
                             {/* 概述 */}
                             <div className="summary-section">
@@ -171,7 +172,7 @@ const AgentAnalysisPage: React.FC<AgentAnalysisPageProps> = ({ onBack }) => {
                             {/* 注意事项 */}
                             {result.aiSummary.warnings.length > 0 && (
                                 <div className="summary-section warnings-section">
-                                    <h4>⚠️ {t('agent.warnings', '注意事项')}</h4>
+                                    <h4><IconWarning size={14} /> {t('agent.warnings', '注意事项')}</h4>
                                     <ul className="warnings-list">
                                         {result.aiSummary.warnings.map((warning, index) => (
                                             <li key={index}>{warning}</li>
@@ -195,7 +196,7 @@ const AgentAnalysisPage: React.FC<AgentAnalysisPageProps> = ({ onBack }) => {
                             {/* 食物禁忌 */}
                             {result.aiSummary.foodInteractions.length > 0 && (
                                 <div className="summary-section">
-                                    <h4>🍽️ {t('agent.foodInteractions', '食物/饮品禁忌')}</h4>
+                                    <h4><IconFood size={14} /> {t('agent.foodInteractions', '食物/饮品禁忌')}</h4>
                                     <div className="tags-container">
                                         {result.aiSummary.foodInteractions.map((item, index) => (
                                             <span key={index} className="tag food-tag">{item}</span>
@@ -209,7 +210,7 @@ const AgentAnalysisPage: React.FC<AgentAnalysisPageProps> = ({ onBack }) => {
                     {/* 不良反应统计 */}
                     {result.adverseEvents && (
                         <div className="result-card adverse-card">
-                            <h3 className="card-subtitle">📊 {t('agent.adverseStats', '不良反应统计')}</h3>
+                            <h3 className="card-subtitle"><IconStethoscope size={16} /> {t('agent.adverseStats', '不良反应统计')}</h3>
 
                             <div className="stats-grid">
                                 <div className="stat-item">
@@ -255,7 +256,7 @@ const AgentAnalysisPage: React.FC<AgentAnalysisPageProps> = ({ onBack }) => {
                     {/* 来源列表 */}
                     {result.sources.length > 0 && (
                         <div className="result-card sources-card">
-                            <h3 className="card-subtitle">📚 {t('agent.sources', '信息来源')}</h3>
+                            <h3 className="card-subtitle"><IconGuide size={16} /> {t('agent.sources', '信息来源')}</h3>
                             <ul className="sources-list">
                                 {result.sources.map((source, index) => (
                                     <li key={index}>{source}</li>
@@ -285,7 +286,7 @@ const AgentAnalysisPage: React.FC<AgentAnalysisPageProps> = ({ onBack }) => {
             {!isAnalyzing && !result && !error && (
                 <section className="empty-section">
                     <div className="empty-content">
-                        <span className="empty-icon">🔬</span>
+                        <span className="empty-icon"><IconStethoscope size={40} /></span>
                         <p className="empty-text">{t('agent.emptyHint', '输入药物名称开始分析')}</p>
                         <p className="empty-subtext">{t('agent.emptySubHint', '支持中英文药物名称')}</p>
                     </div>

@@ -1,38 +1,155 @@
+/* ===== AI Medication Assistant - Warm Minimalist Design System ===== */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+
+/* ===== Light Theme (Default) ===== */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* ── Background ── */
+  --bg-primary: #F7F4F0;
+  --bg-secondary: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F0EDE8;
+  --bg-input: #F2EFEA;
+  --bg-input-focus: #EDEAE4;
+  --bg-hero: #FFF5EC;
+  --bg-overlay: rgba(0, 0, 0, 0.35);
+
+  /* ── Accent ── */
+  --accent-sage: #8FAE8B;
+  --accent-sage-deep: #6B8F67;
+  --accent-sage-light: #C8DCC5;
+  --accent-sage-bg: rgba(143, 174, 139, 0.10);
+  --accent-coral: #D4816B;
+  --accent-coral-deep: #C06B55;
+  --accent-coral-light: #F0C9BD;
+  --accent-coral-bg: rgba(212, 129, 107, 0.10);
+  --accent-warm: #E8C38A;
+  --accent-warm-deep: #D4A862;
+  --accent-warm-light: #FBECD4;
+  --accent-warm-bg: rgba(232, 195, 138, 0.10);
+
+  /* ── Semantic ── */
+  --color-success: #6B9F68;
+  --color-success-bg: rgba(107, 159, 104, 0.10);
+  --color-warning: #D4A04A;
+  --color-warning-bg: rgba(212, 160, 74, 0.10);
+  --color-danger: #C46B5E;
+  --color-danger-bg: rgba(196, 107, 94, 0.10);
+  --color-info: #7BA3B8;
+  --color-info-bg: rgba(123, 163, 184, 0.10);
+
+  /* ── Traffic Light ── */
+  --traffic-green: #6B9F68;
+  --traffic-yellow: #D4A04A;
+  --traffic-red: #C46B5E;
+
+  /* ── Text ── */
+  --text-primary: #2C2C2C;
+  --text-secondary: #6B6B6B;
+  --text-muted: #A0A0A0;
+  --text-on-accent: #FFFFFF;
+  --text-on-warm: #5C4A2E;
+
+  /* ── Border / Shadow ── */
+  --border-light: rgba(0, 0, 0, 0.06);
+  --border-medium: rgba(0, 0, 0, 0.10);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+  /* ── Radius ── */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
+
+  /* ── Typography ── */
+  --font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* ── Transition ── */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.25s ease;
+  --transition-spring: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  font-family: var(--font-family);
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ===== Dark Theme ===== */
+[data-theme="dark"] {
+  --bg-primary: #1A1A1A;
+  --bg-secondary: #242424;
+  --bg-card: #2A2A2A;
+  --bg-card-hover: #333333;
+  --bg-input: #2E2E2E;
+  --bg-input-focus: #363636;
+  --bg-hero: #2E2620;
+  --bg-overlay: rgba(0, 0, 0, 0.55);
+
+  --accent-sage: #A3C49F;
+  --accent-sage-deep: #8FAE8B;
+  --accent-sage-light: #3B4D39;
+  --accent-sage-bg: rgba(163, 196, 159, 0.12);
+  --accent-coral: #E09983;
+  --accent-coral-deep: #D4816B;
+  --accent-coral-light: #4A3530;
+  --accent-coral-bg: rgba(224, 153, 131, 0.12);
+  --accent-warm: #F0D4A0;
+  --accent-warm-deep: #E8C38A;
+  --accent-warm-light: #3D3528;
+  --accent-warm-bg: rgba(240, 212, 160, 0.12);
+
+  --color-success: #8FBF8C;
+  --color-success-bg: rgba(143, 191, 140, 0.12);
+  --color-warning: #E0B868;
+  --color-warning-bg: rgba(224, 184, 104, 0.12);
+  --color-danger: #D88A7E;
+  --color-danger-bg: rgba(216, 138, 126, 0.12);
+  --color-info: #9CBDD0;
+  --color-info-bg: rgba(156, 189, 208, 0.12);
+
+  --traffic-green: #8FBF8C;
+  --traffic-yellow: #E0B868;
+  --traffic-red: #D88A7E;
+
+  --text-primary: #E8E4DF;
+  --text-secondary: #A09A93;
+  --text-muted: #6B665F;
+  --text-on-accent: #1A1A1A;
+  --text-on-warm: #F0E8D8;
+
+  --border-light: rgba(255, 255, 255, 0.06);
+  --border-medium: rgba(255, 255, 255, 0.10);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
 a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+  font-weight: 600;
+  color: var(--accent-sage-deep);
+  text-decoration: none;
 }
 
 a:hover {
-  color: #535bf2;
+  color: var(--accent-sage);
 }
 
 body {
   margin: 0;
-  /* display: flex; REMOVED for mobile layout */
-  /* place-items: center; REMOVED for mobile layout */
   min-width: 320px;
   min-height: 100vh;
-  /* 禁用用户选择（更原生的感觉）- 暂时注释掉以修复中文输入问题 */
-  /* -webkit-user-select: none; */
-  /* user-select: none; */
-  /* 禁用弹跳效果 */
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   overscroll-behavior: none;
 }
 
@@ -46,7 +163,6 @@ body {
   -ms-overflow-style: none;
 }
 
-/* 允许输入框内容可选择 */
 input,
 textarea {
   -webkit-user-select: text;
@@ -54,42 +170,39 @@ textarea {
 }
 
 h1 {
-  font-size: 3.2em;
+  font-size: 2.4em;
   line-height: 1.1;
+  font-weight: 800;
+}
+
+h2 {
+  font-size: 1.6em;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+h3 {
+  font-size: 1.2em;
+  line-height: 1.3;
+  font-weight: 700;
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  border: none;
   padding: 0.6em 1.2em;
   font-size: 1em;
-  font-weight: 500;
+  font-weight: 600;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: var(--bg-card);
+  color: var(--text-primary);
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-
-button:hover {
-  border-color: #646cff;
+  transition: all var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-
-  a:hover {
-    color: #747bff;
-  }
-
-  button {
-    background-color: #f9f9f9;
-  }
+  outline: 2px solid var(--accent-sage);
+  outline-offset: 2px;
 }

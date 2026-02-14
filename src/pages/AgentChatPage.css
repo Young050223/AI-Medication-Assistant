@@ -1,0 +1,421 @@
+/**
+ * @file AgentChatPage.css
+ * @description Agent 聊天页面 — Gemini 风格 + Warm Minimalist
+ */
+
+/* ===== Page Layout ===== */
+.agent-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: var(--bg-primary);
+    padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* ===== Conflict Banner ===== */
+.conflict-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.conflict-light {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.conflict-green {
+    background: var(--bg-secondary);
+}
+
+.conflict-green .conflict-light {
+    background: var(--color-success);
+    box-shadow: 0 0 6px var(--color-success);
+}
+
+.conflict-green .conflict-text {
+    color: var(--color-success);
+}
+
+.conflict-yellow {
+    background: var(--color-warning-bg);
+}
+
+.conflict-yellow .conflict-light {
+    background: var(--color-warning);
+    box-shadow: 0 0 6px var(--color-warning);
+}
+
+.conflict-yellow .conflict-text {
+    color: var(--color-warning);
+}
+
+.conflict-red {
+    background: var(--color-danger-bg);
+}
+
+.conflict-red .conflict-light {
+    background: var(--color-danger);
+    box-shadow: 0 0 6px var(--color-danger);
+    animation: pulse-danger 1.5s ease-in-out infinite;
+}
+
+.conflict-red .conflict-text {
+    color: var(--color-danger);
+}
+
+@keyframes pulse-danger {
+
+    0%,
+    100% {
+        box-shadow: 0 0 6px var(--color-danger);
+    }
+
+    50% {
+        box-shadow: 0 0 16px var(--color-danger);
+    }
+}
+
+.conflict-text {
+    flex: 1;
+}
+
+.new-chat-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform var(--transition-fast);
+}
+
+.new-chat-btn:active {
+    transform: scale(0.9);
+}
+
+/* ===== Chat Area ===== */
+.chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    padding-bottom: 140px;
+    /* space for input area */
+}
+
+/* ===== Empty State — Gemini-style ===== */
+.chat-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+    text-align: center;
+    padding: 0 20px;
+}
+
+.gemini-logo {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-sage), var(--accent-coral));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 32px rgba(143, 174, 139, 0.3);
+    animation: float-gentle 4s ease-in-out infinite;
+}
+
+.gemini-sparkle {
+    font-size: 32px;
+    color: white;
+    font-weight: 700;
+}
+
+@keyframes float-gentle {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-6px);
+    }
+}
+
+.chat-empty-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 8px;
+    line-height: 1.3;
+}
+
+.chat-empty-desc {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin: 0 0 32px;
+}
+
+/* ===== Preset Questions — Gemini Card Style ===== */
+.preset-questions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 360px;
+}
+
+.preset-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    text-align: left;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm);
+}
+
+.preset-btn:hover {
+    border-color: var(--accent-sage-light);
+    box-shadow: var(--shadow-card);
+}
+
+.preset-btn:active {
+    transform: scale(0.98);
+}
+
+.preset-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.preset-text {
+    flex: 1;
+    line-height: 1.4;
+}
+
+/* ===== Chat Messages ===== */
+.chat-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.chat-bubble {
+    display: flex;
+    gap: 10px;
+    max-width: 88%;
+    animation: bubble-in 0.3s ease-out;
+}
+
+@keyframes bubble-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.chat-bubble.user {
+    flex-direction: row-reverse;
+    align-self: flex-end;
+}
+
+.chat-bubble.assistant {
+    align-self: flex-start;
+}
+
+.bubble-avatar {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-sage), var(--accent-coral));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.bubble-content {
+    padding: 12px 16px;
+    border-radius: 20px;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.chat-bubble.user .bubble-content {
+    background: var(--accent-sage);
+    color: var(--text-on-accent);
+    border-bottom-right-radius: 6px;
+}
+
+.chat-bubble.assistant .bubble-content {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+    border-bottom-left-radius: 6px;
+}
+
+.chat-bubble.error .bubble-content {
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
+    border-color: rgba(196, 107, 94, 0.2);
+}
+
+.bubble-content p {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ===== Typing Indicator ===== */
+.bubble-content.typing {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 14px 20px;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    animation: typing-bounce 1.4s ease-in-out infinite;
+}
+
+.dot:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing-bounce {
+
+    0%,
+    60%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+
+    30% {
+        transform: translateY(-6px);
+        opacity: 1;
+    }
+}
+
+/* ===== Input Area — Gemini Style ===== */
+.chat-input-area {
+    position: fixed;
+    bottom: 72px;
+    /* above bottom nav */
+    left: 0;
+    right: 0;
+    padding: 12px 20px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-light);
+}
+
+.chat-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-secondary);
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-full);
+    padding: 4px 4px 4px 18px;
+    transition: border-color var(--transition-fast);
+}
+
+.chat-input-wrapper:focus-within {
+    border-color: var(--accent-sage);
+    box-shadow: 0 0 0 3px var(--accent-sage-bg);
+}
+
+.chat-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    font-family: inherit;
+    color: var(--text-primary);
+    outline: none;
+    padding: 10px 0;
+}
+
+.chat-input::placeholder {
+    color: var(--text-muted);
+}
+
+.chat-input:disabled {
+    opacity: 0.6;
+}
+
+.chat-send-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--accent-sage);
+    color: var(--text-on-accent);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.chat-send-btn:hover:not(:disabled) {
+    background: var(--accent-sage-deep);
+}
+
+.chat-send-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.chat-disclaimer {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    margin: 6px 0 0;
+}

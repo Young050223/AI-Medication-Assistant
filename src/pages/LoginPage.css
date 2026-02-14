@@ -1,11 +1,8 @@
 /**
  * @file LoginPage.css
- * @description 登录页面样式 - 老年友好设计
- * @author AI用药助手开发团队
- * @created 2026-01-17
+ * @description 登录页面 — Warm Minimalist
  */
 
-/* 页面容器 */
 .login-page {
   min-height: 100vh;
   display: flex;
@@ -14,112 +11,109 @@
   align-items: center;
   padding: 24px;
   padding-top: calc(24px + env(safe-area-inset-top, 0px));
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--bg-primary);
 }
 
-/* 头部区域 */
 .login-header {
   text-align: center;
   margin-bottom: 40px;
 }
 
 .login-logo {
-  font-size: 64px;
+  font-size: 56px;
   margin-bottom: 16px;
 }
 
 .login-title {
-  font-size: 32px;
-  font-weight: 700;
-  color: #ffffff;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-primary);
   margin: 0 0 8px 0;
 }
 
 .login-subtitle {
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: 16px;
+  color: var(--text-secondary);
   margin: 0;
 }
 
-/* 表单区域 */
 .login-form {
   width: 100%;
   max-width: 400px;
-  background: #ffffff;
-  border-radius: 20px;
-  padding: 32px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-md);
 }
 
-/* 错误提示 */
-.error-message {
-  background: #fee2e2;
-  color: #dc2626;
-  padding: 16px;
-  border-radius: 12px;
-  margin-bottom: 20px;
-  font-size: 16px;
-  text-align: center;
+.login-form .form-group {
+  margin-bottom: 22px;
 }
 
-/* 表单组 */
-.form-group {
-  margin-bottom: 24px;
-}
-
-.form-label {
+.login-form .form-label {
   display: block;
-  font-size: 18px;
-  font-weight: 600;
-  color: #374151;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-secondary);
   margin-bottom: 8px;
 }
 
-.form-input {
+.login-form .form-input {
   width: 100%;
-  padding: 16px 20px;
-  font-size: 20px;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  background: #f9fafb;
-  color: #111827;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  padding: 16px 18px;
+  font-size: 18px;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   box-sizing: border-box;
 }
 
-.form-input:focus {
+.login-form .form-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
-  background: #ffffff;
+  border-color: var(--accent-sage);
+  box-shadow: 0 0 0 3px var(--accent-sage-bg);
 }
 
-.form-input::placeholder {
-  color: #9ca3af;
+.login-form .form-input::placeholder {
+  color: var(--text-muted);
 }
 
-.form-input:disabled {
-  opacity: 0.6;
+.login-form .form-input:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* 登录按钮 */
+.login-form .error-message {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(196, 107, 94, 0.15);
+  margin-bottom: 16px;
+  font-size: 15px;
+  text-align: center;
+}
+
 .login-button {
   width: 100%;
   padding: 18px;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
-  color: #ffffff;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: var(--text-on-accent);
+  background: var(--accent-sage);
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-base);
 }
 
 .login-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  background: var(--accent-sage-deep);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .login-button:active:not(:disabled) {
@@ -127,60 +121,48 @@
 }
 
 .login-button:disabled {
-  opacity: 0.7;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* 底部链接 */
 .login-footer {
   margin-top: 24px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 18px;
+  color: var(--text-secondary);
+  font-size: 16px;
 }
 
 .link-button {
   background: none;
   border: none;
-  color: #ffffff;
-  font-size: 18px;
-  font-weight: 600;
-  text-decoration: underline;
+  color: var(--accent-sage-deep);
+  font-size: 16px;
+  font-weight: 700;
   cursor: pointer;
   padding: 0;
-  margin-left: 8px;
+  margin-left: 6px;
+  transition: color var(--transition-fast);
 }
 
 .link-button:hover {
-  color: #fbbf24;
+  color: var(--accent-sage);
 }
 
 .link-button:disabled {
-  opacity: 0.6;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* 响应式设计 */
 @media (max-width: 480px) {
   .login-page {
     padding: 16px;
   }
 
   .login-form {
-    padding: 24px;
+    padding: 22px;
   }
 
   .login-title {
-    font-size: 28px;
-  }
-
-  .form-input {
-    font-size: 18px;
-    padding: 14px 16px;
-  }
-
-  .login-button {
-    font-size: 20px;
-    padding: 16px;
+    font-size: 24px;
   }
 }

@@ -234,7 +234,7 @@ async function translateAndAlignDrugName(
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            model: 'gpt-4o-mini',
+            model: 'gpt-5.2',
             messages: [
                 {
                     role: 'system',
@@ -286,7 +286,7 @@ Rules:
 
     const primaryCandidate = candidates[0];
     addWorkflowLog(logs, 'step0.translate', 'success', `OpenAI 翻译候选: ${candidates.join(' | ')}`, {
-        model: 'gpt-4o-mini',
+        model: 'gpt-5.2',
         promptTokens: translateData.usage?.prompt_tokens,
         completionTokens: translateData.usage?.completion_tokens,
         durationMs: translateElapsed,
@@ -329,7 +329,7 @@ Rules:
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            model: 'gpt-4o-mini',
+            model: 'gpt-5.2',
             messages: [
                 {
                     role: 'system',

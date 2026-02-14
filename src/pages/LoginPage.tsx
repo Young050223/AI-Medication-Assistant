@@ -9,6 +9,7 @@
 import { useState, useCallback } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { IconPill } from '../components/Icons';
 import { useAuth } from '../hooks/user/useAuth';
 import './LoginPage.css';
 
@@ -59,7 +60,7 @@ export function LoginPage({ onNavigateToRegister, onLoginSuccess }: LoginPagePro
         <div className="login-page">
             {/* 顶部Logo区域 */}
             <div className="login-header">
-                <div className="login-logo">💊</div>
+                <div className="login-logo"><IconPill size={48} /></div>
                 <h1 className="login-title">{t('app.name')}</h1>
                 <p className="login-subtitle">{t('auth.loginSubtitle')}</p>
             </div>

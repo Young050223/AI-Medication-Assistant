@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHealthProfile } from '../hooks/user/useHealthProfile';
+import { IconClipboard } from '../components/Icons';
 import type { HealthProfileFormData, Gender } from '../types/HealthProfile.types';
 import './HealthProfilePage.css';
 
@@ -111,7 +112,7 @@ export function HealthProfilePage({ onComplete }: HealthProfilePageProps) {
     if (isLoading) {
         return (
             <div className="health-profile-loading">
-                <div className="loading-spinner">📋</div>
+                <div className="loading-spinner"><IconClipboard size={32} /></div>
                 <p>{t('app.loading')}</p>
             </div>
         );

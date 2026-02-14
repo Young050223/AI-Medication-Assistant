@@ -1,11 +1,8 @@
 /**
  * @file RegisterPage.css
- * @description 注册页面样式 - 老年友好设计
- * @author AI用药助手开发团队
- * @created 2026-01-17
+ * @description 注册页面 — Warm Minimalist
  */
 
-/* 页面容器 */
 .register-page {
     min-height: 100vh;
     display: flex;
@@ -15,63 +12,60 @@
     padding: 24px;
     padding-top: calc(24px + env(safe-area-inset-top));
     padding-bottom: calc(24px + env(safe-area-inset-bottom));
-    padding-left: calc(24px + env(safe-area-inset-left));
-    padding-right: calc(24px + env(safe-area-inset-right));
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--bg-primary);
 }
 
-/* 头部区域 */
 .register-header {
     text-align: center;
-    margin-bottom: 32px;
+    margin-bottom: 28px;
 }
 
 .register-logo {
-    font-size: 56px;
+    font-size: 48px;
     margin-bottom: 12px;
 }
 
 .register-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: #ffffff;
-    margin: 0 0 8px 0;
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 6px 0;
 }
 
 .register-subtitle {
-    font-size: 16px;
-    color: rgba(255, 255, 255, 0.85);
+    font-size: 15px;
+    color: var(--text-secondary);
     margin: 0;
 }
 
-/* 表单区域 */
 .register-form {
     width: 100%;
     max-width: 400px;
-    background: #ffffff;
-    border-radius: 20px;
-    padding: 28px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: var(--shadow-md);
 }
 
-/* 注册按钮 */
 .register-button {
     width: 100%;
-    padding: 18px;
-    font-size: 22px;
+    padding: 17px;
+    font-size: 20px;
     font-weight: 700;
-    color: #ffffff;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: var(--text-on-accent);
+    background: var(--accent-sage);
     border: none;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
     margin-top: 8px;
+    transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-base);
 }
 
 .register-button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    background: var(--accent-sage-deep);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
 }
 
 .register-button:active:not(:disabled) {
@@ -79,19 +73,17 @@
 }
 
 .register-button:disabled {
-    opacity: 0.7;
+    opacity: 0.5;
     cursor: not-allowed;
 }
 
-/* 底部链接 */
 .register-footer {
     margin-top: 24px;
     text-align: center;
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 18px;
+    color: var(--text-secondary);
+    font-size: 16px;
 }
 
-/* 响应式设计 */
 @media (max-width: 480px) {
     .register-page {
         padding: 16px;
@@ -102,6 +94,6 @@
     }
 
     .register-title {
-        font-size: 24px;
+        font-size: 22px;
     }
 }

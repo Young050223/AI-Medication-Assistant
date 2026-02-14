@@ -1,12 +1,10 @@
 /**
  * @file App.tsx
- * @description 应用主入口，路由管理
- * @author AI用药助手开发团队
- * @created 2026-01-17
- * @modified 2026-01-28
+ * @description 应用主入口，路由管理 — 4-Tab 导航架构
+ * @preserve 保留所有 useAuth、feedback、record 等业务逻辑
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './hooks/user/useAuth';
 import LoginPage from './pages/LoginPage';
@@ -16,55 +14,51 @@ import MedicalRecordUploadPage from './pages/MedicalRecordUploadPage';
 import MedicationSchedulePage from './pages/MedicationSchedulePage';
 import MedicationFeedbackPage from './pages/MedicationFeedbackPage';
 import LandingPage from './pages/LandingPage';
-import AgentAnalysisPage from './pages/AgentAnalysisPage';
+import AgentChatPage from './pages/AgentChatPage';
+import SettingsPage from './pages/SettingsPage';
 import BottomNavBar, { type NavItem } from './components/BottomNavBar';
 import type { ExtractedMedication } from './types/MedicalRecord.types';
 import './i18n';
+import { IconPill } from './components/Icons';
 import './App.css';
 
 // 页面类型
-type PageType = 'login' | 'register' | 'healthProfile' | 'landing' | 'uploadRecord' | 'schedules' | 'profile' | 'feedback' | 'agentAnalysis';
+type PageType = 'login' | 'register' | 'healthProfile' | 'landing'
+  | 'uploadRecord' | 'schedules' | 'feedback' | 'agent' | 'settings';
 
 /**
  * 应用主组件
  */
 function App() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { isLoading, user, logout } = useAuth();
-  // 根据用户登录状态决定初始页面
   const [currentPage, setCurrentPage] = useState<PageType>('login');
   const [currentTab, setCurrentTab] = useState<NavItem>('home');
-  // 反馈页面所需的预选数据
+  // 反馈页面预选数据
   const [feedbackMedication, setFeedbackMedication] = useState<string | undefined>();
   const [feedbackScheduleId, setFeedbackScheduleId] = useState<string | undefined>();
 
-  /**
-   * 处理登出
-   */
+  // 初始化主题
+  useEffect(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) {
+      document.documentElement.setAttribute('data-theme', saved);
+    }
+  }, []);
+
   const handleLogout = useCallback(async () => {
     await logout();
     setCurrentPage('login');
   }, [logout]);
 
-  /**
-   * 切换语言
-   */
-  const handleLanguageChange = (lang: string) => {
-    i18n.changeLanguage(lang);
-  };
-
-  /**
-   * 处理病例识别完成
-   */
   const handleRecordComplete = useCallback((medications: ExtractedMedication[]) => {
     console.log('[App] 识别到的药物:', medications);
-    // TODO: 保存到本地存储，创建服药计划
     setCurrentPage('landing');
     setCurrentTab('home');
   }, []);
 
   /**
-   * 处理底部导航栏Tab切换
+   * 底部导航 Tab 切换
    */
   const handleTabChange = useCallback((tab: NavItem) => {
     setCurrentTab(tab);
@@ -72,57 +66,32 @@ function App() {
       case 'home':
         setCurrentPage('landing');
         break;
-      case 'records':
-        setCurrentPage('uploadRecord');
+      case 'agent':
+        setCurrentPage('agent');
         break;
-      case 'reminders':
+      case 'schedule':
         setCurrentPage('schedules');
         break;
-      case 'profile':
-        setCurrentPage('profile');
+      case 'me':
+        setCurrentPage('settings');
         break;
     }
   }, []);
-
-  // 语言切换组件
-  const LanguageSwitcher = () => (
-    <div className="language-switcher">
-      <button
-        className={`lang-btn ${i18n.language === 'zh-CN' ? 'active' : ''}`}
-        onClick={() => handleLanguageChange('zh-CN')}
-      >
-        简
-      </button>
-      <button
-        className={`lang-btn ${i18n.language === 'zh-TW' ? 'active' : ''}`}
-        onClick={() => handleLanguageChange('zh-TW')}
-      >
-        繁
-      </button>
-      <button
-        className={`lang-btn ${i18n.language === 'en' ? 'active' : ''}`}
-        onClick={() => handleLanguageChange('en')}
-      >
-        EN
-      </button>
-    </div>
-  );
 
   // 加载中
   if (isLoading) {
     return (
       <div className="app-loading">
-        <div className="loading-spinner">💊</div>
+        <div className="loading-spinner"><IconPill size={32} /></div>
         <p>{t('app.loading')}</p>
       </div>
     );
   }
 
-  // 未登录：显示登录/注册页面
+  // 未登录
   if (!user || currentPage === 'login' || currentPage === 'register') {
     return (
       <div className="app">
-        <LanguageSwitcher />
         {currentPage === 'register' ? (
           <RegisterPage
             onNavigateToLogin={() => setCurrentPage('login')}
@@ -144,14 +113,11 @@ function App() {
     );
   }
 
-  // 判断是否显示底部导航栏（在主要页面显示，详情页不显示）
-  const showBottomNav = ['landing', 'uploadRecord', 'schedules', 'profile'].includes(currentPage);
+  // 主 Tab 页面
+  const showBottomNav = ['landing', 'agent', 'schedules', 'settings'].includes(currentPage);
 
-  // 已登录：根据页面类型显示不同内容
   return (
     <div className="app">
-      <LanguageSwitcher />
-
       {currentPage === 'healthProfile' && (
         <HealthProfilePage
           onComplete={() => {
@@ -189,7 +155,7 @@ function App() {
         <MedicationFeedbackPage
           onBack={() => {
             setCurrentPage('schedules');
-            setCurrentTab('reminders');
+            setCurrentTab('schedule');
             setFeedbackMedication(undefined);
             setFeedbackScheduleId(undefined);
           }}
@@ -203,36 +169,41 @@ function App() {
           userName={user?.displayName || undefined}
           onNavigateToUpload={() => {
             setCurrentPage('uploadRecord');
-            setCurrentTab('records');
           }}
           onNavigateToSchedules={() => {
             setCurrentPage('schedules');
-            setCurrentTab('reminders');
-          }}
-          onNavigateToProfile={() => {
-            setCurrentPage('healthProfile');
+            setCurrentTab('schedule');
           }}
           onNavigateToAgentAnalysis={() => {
-            setCurrentPage('agentAnalysis');
+            setCurrentPage('agent');
+            setCurrentTab('agent');
+          }}
+          onLogout={handleLogout}
+          onNavigateToFeedback={(medicationName: string, scheduleId: string) => {
+            setFeedbackMedication(medicationName);
+            setFeedbackScheduleId(scheduleId);
+            setCurrentPage('feedback');
+          }}
+        />
+      )}
+
+      {currentPage === 'agent' && (
+        <AgentChatPage
+          onNavigateToUpload={() => {
+            setCurrentPage('uploadRecord');
+          }}
+        />
+      )}
+
+      {currentPage === 'settings' && (
+        <SettingsPage
+          onNavigateToHealthProfile={() => {
+            setCurrentPage('healthProfile');
           }}
           onLogout={handleLogout}
         />
       )}
 
-      {currentPage === 'agentAnalysis' && (
-        <AgentAnalysisPage onBack={() => setCurrentPage('landing')} />
-      )}
-
-      {currentPage === 'profile' && (
-        <HealthProfilePage
-          onComplete={() => {
-            setCurrentPage('landing');
-            setCurrentTab('home');
-          }}
-        />
-      )}
-
-      {/* 底部导航栏 */}
       {showBottomNav && (
         <BottomNavBar
           currentTab={currentTab}

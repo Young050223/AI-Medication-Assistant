@@ -220,7 +220,7 @@ export async function summarizeDrugInfo(
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            model: 'gpt-4o-mini',
+            model: 'gpt-5.2',
             messages: [
                 { role: 'system', content: buildSystemPrompt(language) },
                 { role: 'user', content: buildUserPrompt(input) },

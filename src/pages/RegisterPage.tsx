@@ -9,6 +9,7 @@
 import { useState, useCallback } from 'react';
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { IconPill } from '../components/Icons';
 import { useAuth } from '../hooks/user/useAuth';
 import './RegisterPage.css';
 
@@ -31,11 +32,7 @@ export function RegisterPage({ onNavigateToLogin, onRegisterSuccess }: RegisterP
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [formError, setFormError] = useState('');
-    // DEBUG: 添加屏幕调试日志
-    const [debugLogs, setDebugLogs] = useState<string[]>([]);
     const addLog = (msg: string) => {
-        const time = new Date().toLocaleTimeString();
-        setDebugLogs(prev => [`${time}: ${msg}`, ...prev].slice(0, 5));
         console.log(msg);
     };
 
@@ -92,7 +89,7 @@ export function RegisterPage({ onNavigateToLogin, onRegisterSuccess }: RegisterP
         <div className="register-page">
             {/* 顶部Logo区域 */}
             <div className="register-header">
-                <div className="register-logo">💊</div>
+                <div className="register-logo"><IconPill size={48} /></div>
                 <h1 className="register-title">{t('auth.registerTitle')}</h1>
                 <p className="register-subtitle">{t('auth.registerSubtitle')}</p>
             </div>
@@ -172,23 +169,6 @@ export function RegisterPage({ onNavigateToLogin, onRegisterSuccess }: RegisterP
                         autoComplete="new-password"
                         disabled={isLoading}
                     />
-                </div>
-
-                {/* 调试日志区域 */}
-                <div style={{
-                    position: 'fixed',
-                    top: 50,
-                    left: 0,
-                    right: 0,
-                    background: 'rgba(0,0,0,0.8)',
-                    color: '#0f0',
-                    fontSize: '12px',
-                    padding: '10px',
-                    zIndex: 9999,
-                    pointerEvents: 'none'
-                }}>
-                    <div>Loading: {String(isLoading)}</div>
-                    {debugLogs.map((log, i) => <div key={i}>{log}</div>)}
                 </div>
 
                 {/* 注册按钮 */}

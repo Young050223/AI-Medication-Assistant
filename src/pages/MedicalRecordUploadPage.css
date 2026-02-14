@@ -1,302 +1,204 @@
 /**
  * @file MedicalRecordUploadPage.css
- * @description 病例上传页面样式 - 老年友好设计
- * @author AI用药助手开发团队
- * @created 2026-01-18
+ * @description 病例上传页面 — Warm Minimalist
  */
 
-/* 页面容器 */
 .record-upload-page {
     min-height: 100vh;
-    background: #f8fafc;
+    background: var(--bg-primary);
     padding-bottom: 32px;
 }
 
-/* 健康档案未完成提示 */
-.profile-required {
-    min-height: 100vh;
+/* Header */
+.upload-header {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    padding-top: calc(16px + env(safe-area-inset-top));
+}
+
+.upload-back-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
     justify-content: center;
-    align-items: center;
-    padding: 24px;
-    text-align: center;
-}
-
-.profile-required .icon {
-    font-size: 64px;
-    margin-bottom: 16px;
-}
-
-.profile-required h2 {
-    font-size: 24px;
-    color: #1f2937;
-    margin: 0 0 8px 0;
-}
-
-.profile-required p {
-    font-size: 16px;
-    color: #6b7280;
-    margin: 0 0 24px 0;
-}
-
-/* 页面头部 */
-.page-header {
-    display: flex;
-    align-items: center;
-    padding: 16px;
-    padding-top: calc(16px + env(safe-area-inset-top, 0px));
-    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-    color: #ffffff;
-}
-
-.back-button {
-    background: none;
-    border: none;
-    color: #ffffff;
-    font-size: 18px;
-    padding: 8px 12px;
-    cursor: pointer;
-}
-
-.page-header .page-title {
-    flex: 1;
-    text-align: center;
-    font-size: 22px;
-    font-weight: 700;
-    margin: 0;
-    padding-right: 50px;
-}
-
-/* 上传容器 */
-.upload-container {
-    padding: 20px 16px;
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-/* 区域标题 */
-.section-title {
     font-size: 20px;
-    font-weight: 700;
-    color: #1f2937;
-    margin: 0 0 8px 0;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
 }
 
-.section-hint {
-    font-size: 16px;
-    color: #6b7280;
+.upload-back-btn:active {
+    background: var(--bg-card-hover);
+}
+
+.upload-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* Content */
+.upload-content {
+    padding: 0 20px;
+}
+
+.upload-instruction {
+    font-size: 15px;
+    color: var(--text-secondary);
     margin: 0 0 20px 0;
+    line-height: 1.5;
 }
 
-/* 上传按钮区域 */
-.upload-section {
-    background: #ffffff;
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.upload-buttons {
-    display: flex;
-    gap: 16px;
-}
-
-.upload-button {
-    flex: 1;
+/* Camera area */
+.camera-preview {
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: var(--bg-card);
+    border: 2px dashed var(--border-medium);
+    border-radius: var(--radius-lg);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 32px 16px;
-    border: 2px dashed #e5e7eb;
-    border-radius: 16px;
-    background: #f9fafb;
-    cursor: pointer;
-    transition: all 0.2s;
+    gap: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
 }
 
-.upload-button:hover {
-    border-color: #3b82f6;
-    background: #eff6ff;
+.camera-preview img,
+.camera-preview video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--radius-lg);
 }
 
-.upload-button.camera {
-    border-color: #3b82f6;
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-}
-
-.upload-button .icon {
+.camera-icon {
     font-size: 48px;
+}
+
+.camera-hint {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.capture-btn {
+    width: 100%;
+    padding: 16px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-on-accent);
+    background: var(--accent-sage);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background var(--transition-fast), transform var(--transition-fast);
     margin-bottom: 12px;
 }
 
-.upload-button .label {
-    font-size: 18px;
-    font-weight: 600;
-    color: #374151;
+.capture-btn:hover:not(:disabled) {
+    background: var(--accent-sage-deep);
 }
 
-.upload-button:disabled {
-    opacity: 0.6;
+.capture-btn:disabled {
+    opacity: 0.5;
     cursor: not-allowed;
 }
 
-/* 预览区域 */
-.preview-section {
-    background: #ffffff;
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.image-preview {
+.retake-btn {
     width: 100%;
-    border-radius: 12px;
-    overflow: hidden;
-    margin-bottom: 20px;
-    background: #f3f4f6;
-}
-
-.image-preview img {
-    width: 100%;
-    height: auto;
-    display: block;
-}
-
-.preview-actions {
-    display: flex;
-    gap: 12px;
-}
-
-.secondary-button {
-    flex: 1;
-    padding: 16px;
-    font-size: 18px;
+    padding: 14px;
+    font-size: 16px;
     font-weight: 600;
-    color: #374151;
-    background: #f3f4f6;
-    border: none;
-    border-radius: 12px;
+    color: var(--text-secondary);
+    background: var(--bg-input);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
     cursor: pointer;
-}
-
-.secondary-button:hover {
-    background: #e5e7eb;
-}
-
-/* 结果区域 */
-.result-section {
-    background: #ffffff;
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-/* 药物列表 */
-.medications-list {
-    margin-bottom: 20px;
-}
-
-.medication-card {
-    background: #f8fafc;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 16px;
-}
-
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     margin-bottom: 12px;
 }
 
-.med-number {
-    font-size: 16px;
-    font-weight: 600;
-    color: #3b82f6;
-}
-
-.remove-button {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: none;
-    background: #fee2e2;
-    color: #dc2626;
-    font-size: 16px;
-    cursor: pointer;
-}
-
-.remove-button:hover {
-    background: #fecaca;
-}
-
-.medication-card .form-group {
-    margin-bottom: 12px;
-}
-
-.medication-card label {
-    display: block;
-    font-size: 14px;
-    font-weight: 600;
-    color: #6b7280;
-    margin-bottom: 4px;
-}
-
-.medication-card .form-input {
-    padding: 12px;
-    font-size: 16px;
-}
-
-.form-row {
-    display: flex;
-    gap: 12px;
-}
-
-.form-group.half {
-    flex: 1;
-}
-
-/* 添加药物按钮 */
-.add-medication-button {
-    width: 100%;
-    padding: 16px;
-    font-size: 18px;
-    font-weight: 600;
-    color: #3b82f6;
-    background: #eff6ff;
-    border: 2px dashed #3b82f6;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.add-medication-button:hover {
-    background: #dbeafe;
-}
-
-/* 结果操作按钮 */
-.result-actions {
-    display: flex;
-    gap: 12px;
+/* Results */
+.extracted-results {
     margin-top: 20px;
 }
 
-/* 响应式 */
-@media (max-width: 480px) {
-    .upload-buttons {
-        flex-direction: column;
+.results-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 12px 0;
+}
+
+.med-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 10px;
+    box-shadow: var(--shadow-card);
+}
+
+.med-name {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 6px 0;
+}
+
+.med-detail {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.4;
+}
+
+.save-results-btn {
+    width: 100%;
+    padding: 16px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-on-accent);
+    background: var(--accent-sage);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    margin-top: 16px;
+    transition: background var(--transition-fast);
+}
+
+.save-results-btn:hover {
+    background: var(--accent-sage-deep);
+}
+
+/* Loading */
+.upload-loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+}
+
+.upload-spinner {
+    font-size: 40px;
+    animation: soft-bounce 1.8s ease-in-out infinite;
+    margin-bottom: 12px;
+}
+
+@keyframes soft-bounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
     }
 
-    .form-row {
-        flex-direction: column;
-        gap: 0;
-    }
-
-    .form-group.half {
-        flex: none;
+    50% {
+        transform: translateY(-8px);
     }
 }

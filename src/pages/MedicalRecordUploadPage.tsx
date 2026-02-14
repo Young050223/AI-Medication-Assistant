@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useCamera } from '../hooks/common/useCamera';
 import { useMedicationExtractor } from '../hooks/medication/useMedicationExtractor';
 import { useHealthProfile } from '../hooks/user/useHealthProfile';
+import { IconClipboard, IconBack, IconCamera, IconImage, IconEye, IconPill, IconClose } from '../components/Icons';
 import type { ExtractedMedication } from '../types/MedicalRecord.types';
 import './MedicalRecordUploadPage.css';
 
@@ -122,7 +123,7 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
         return (
             <div className="record-upload-page">
                 <div className="profile-required">
-                    <div className="icon">📋</div>
+                    <div className="icon"><IconClipboard size={40} /></div>
                     <h2>{t('upload.profileRequired')}</h2>
                     <p>{t('upload.profileRequiredDesc')}</p>
                     <button className="primary-button" onClick={onBack}>
@@ -138,7 +139,7 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
             {/* 头部 */}
             <div className="page-header">
                 <button className="back-button" onClick={onBack}>
-                    ← {t('app.back')}
+                    <IconBack size={16} /> {t('app.back')}
                 </button>
                 <h1 className="page-title">{t('upload.title')}</h1>
             </div>
@@ -147,7 +148,7 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
                 {/* 步骤1：拍照/选择图片 */}
                 {!imageUri && (
                     <div className="upload-section">
-                        <h2 className="section-title">📸 {t('upload.step1Title')}</h2>
+                        <h2 className="section-title"><IconCamera size={18} /> {t('upload.step1Title')}</h2>
                         <p className="section-hint">{t('upload.step1Hint')}</p>
 
                         <div className="upload-buttons">
@@ -156,7 +157,7 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
                                 onClick={handleTakePhoto}
                                 disabled={isCapturing}
                             >
-                                <span className="icon">📷</span>
+                                <span className="icon"><IconCamera size={24} /></span>
                                 <span className="label">{t('upload.takePhoto')}</span>
                             </button>
 
@@ -165,7 +166,7 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
                                 onClick={handlePickFromGallery}
                                 disabled={isCapturing}
                             >
-                                <span className="icon">🖼️</span>
+                                <span className="icon"><IconImage size={24} /></span>
                                 <span className="label">{t('upload.fromGallery')}</span>
                             </button>
                         </div>
@@ -175,7 +176,7 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
                 {/* 步骤2：预览和识别 */}
                 {imageUri && !showResult && (
                     <div className="preview-section">
-                        <h2 className="section-title">👁️ {t('upload.step2Title')}</h2>
+                        <h2 className="section-title"><IconEye size={18} /> {t('upload.step2Title')}</h2>
 
                         <div className="image-preview">
                             <img src={imageUri} alt="Medical record" />
@@ -203,7 +204,7 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
                 {/* 步骤3：识别结果 */}
                 {showResult && result && (
                     <div className="result-section">
-                        <h2 className="section-title">💊 {t('upload.step3Title')}</h2>
+                        <h2 className="section-title"><IconPill size={18} /> {t('upload.step3Title')}</h2>
                         <p className="section-hint">{t('upload.step3Hint')}</p>
 
                         {/* 药物列表 */}
@@ -216,7 +217,7 @@ export function MedicalRecordUploadPage({ onComplete, onBack }: MedicalRecordUpl
                                             className="remove-button"
                                             onClick={() => handleRemoveMedication(index)}
                                         >
-                                            ✕
+                                            <IconClose size={14} />
                                         </button>
                                     </div>
 

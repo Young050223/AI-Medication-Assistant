@@ -1,0 +1,241 @@
+/**
+ * @file SettingsPage.css
+ * @description 设置页面 — Warm Minimalist
+ */
+
+.settings-page {
+    min-height: 100vh;
+    background: var(--bg-primary);
+    padding: 0 20px;
+    padding-top: env(safe-area-inset-top, 16px);
+}
+
+.settings-header {
+    padding: 20px 0 12px;
+}
+
+.settings-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* ===== User Card ===== */
+.user-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-card);
+    margin-bottom: 24px;
+}
+
+.user-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--accent-sage-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.user-info {
+    flex: 1;
+}
+
+.user-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 2px 0;
+}
+
+.user-email {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* ===== Sections ===== */
+.settings-section {
+    margin-bottom: 20px;
+}
+
+.section-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 8px 4px;
+}
+
+/* ===== Setting Items ===== */
+.setting-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    margin-bottom: 6px;
+    width: 100%;
+    text-align: left;
+    transition: background var(--transition-fast);
+}
+
+.setting-item.clickable {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.setting-item.clickable:active {
+    background: var(--bg-card-hover);
+}
+
+.setting-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.setting-icon {
+    font-size: 22px;
+}
+
+.setting-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.setting-arrow {
+    font-size: 20px;
+    color: var(--text-muted);
+    font-weight: 300;
+}
+
+.setting-badge {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-warm-deep);
+    background: var(--accent-warm-bg);
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+}
+
+/* ===== Language Pills ===== */
+.lang-pills {
+    display: flex;
+    gap: 6px;
+}
+
+.lang-pill {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-light);
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.lang-pill.active {
+    background: var(--accent-sage);
+    color: var(--text-on-accent);
+    border-color: var(--accent-sage);
+}
+
+/* ===== Theme Toggle ===== */
+.theme-toggle {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+.toggle-track {
+    display: block;
+    width: 52px;
+    height: 30px;
+    border-radius: 15px;
+    background: var(--bg-input);
+    border: 1.5px solid var(--border-medium);
+    position: relative;
+    transition: background var(--transition-base), border-color var(--transition-base);
+}
+
+.toggle-track.dark {
+    background: var(--accent-sage);
+    border-color: var(--accent-sage);
+}
+
+.toggle-thumb {
+    display: block;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-sm);
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform var(--transition-spring);
+}
+
+.toggle-track.dark .toggle-thumb {
+    transform: translateX(22px);
+}
+
+/* ===== Logout ===== */
+.logout-btn {
+    width: 100%;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-danger);
+    background: var(--color-danger-bg);
+    border: 1px solid rgba(196, 107, 94, 0.15);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.logout-btn:active {
+    transform: scale(0.98);
+}
+
+/* ===== Footer ===== */
+.settings-footer {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.version-text {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.nav-spacer {
+    height: 90px;
+}
+
+@media (min-width: 480px) {
+    .settings-page {
+        max-width: 480px;
+        margin: 0 auto;
+    }
+}

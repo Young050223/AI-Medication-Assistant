@@ -1,328 +1,353 @@
 /**
  * @file LandingPage.tsx
- * @description Landing主页 - 用户登录后的首页
- * @author AI用药助手开发团队
- * @created 2026-01-28
- * @modified 2026-01-30 - 集成真实服药计划数据
+ * @description 首页 — 服药核心页
+ * Hero FAB "确认服用" + 用药概览 + 快捷操作
+ * @preserve 保留所有 useMedicationSchedule 业务逻辑
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useMedicationSchedule } from '../hooks/medication/useMedicationSchedule';
+import { useMedicationSchedule, type MedicationSchedule, type MedicationReminder } from '../hooks/medication/useMedicationSchedule';
+import { IconPill, IconSun, IconCheck, IconCamera, IconGuide } from '../components/Icons';
 import './LandingPage.css';
 
 interface LandingPageProps {
     userName?: string;
     onNavigateToUpload: () => void;
     onNavigateToSchedules: () => void;
-    onNavigateToProfile: () => void;
     onNavigateToAgentAnalysis: () => void;
     onLogout: () => void;
+    onNavigateToFeedback?: (medicationName: string, scheduleId: string) => void;
 }
 
-// 今日药物提醒类型（包含状态）
-interface TodayReminder {
-    id: string;
+// 展开的提醒类型
+interface FlatReminder {
     scheduleId: string;
     reminderId: string;
     name: string;
     time: string;
     dosage: string;
     taken: boolean;
-    missed: boolean; // 已错过（过期超过2小时）
+    missed: boolean;
 }
 
 /**
  * 判断某个时间是否已过期超过2小时
- * @param timeStr 时间字符串，格式 "HH:mm"
- * @returns 是否已错过
  */
 const isMissed = (timeStr: string): boolean => {
     const now = new Date();
     const [hours, minutes] = timeStr.split(':').map(Number);
-
-    const scheduledTime = new Date();
-    scheduledTime.setHours(hours, minutes, 0, 0);
-
-    const diffMs = now.getTime() - scheduledTime.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
-
-    return diffHours > 2;
+    const scheduled = new Date();
+    scheduled.setHours(hours, minutes, 0, 0);
+    return (now.getTime() - scheduled.getTime()) / (1000 * 60 * 60) > 2;
 };
 
 /**
- * Landing主页组件
+ * 获取时段问候语
  */
-export function LandingPage({
+const getGreeting = (t: (key: string, fallback: string) => string): string => {
+    const hour = new Date().getHours();
+    if (hour < 6) return t('landing.greeting.night', '夜深了');
+    if (hour < 12) return t('landing.greeting.morning', '早上好');
+    if (hour < 18) return t('landing.greeting.afternoon', '下午好');
+    return t('landing.greeting.evening', '晚上好');
+};
+
+/**
+ * 获取下一个待服药的提醒
+ */
+const getNextDose = (reminders: FlatReminder[]): FlatReminder | null => {
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const pending = reminders
+        .filter(r => !r.taken && !r.missed)
+        .map(r => {
+            const [h, m] = r.time.split(':').map(Number);
+            return { ...r, totalMinutes: h * 60 + m };
+        })
+        .filter(r => r.totalMinutes >= currentMinutes)
+        .sort((a, b) => a.totalMinutes - b.totalMinutes);
+
+    return pending.length > 0 ? pending[0] : null;
+};
+
+export default function LandingPage({
     userName,
     onNavigateToUpload,
     onNavigateToSchedules,
-    onNavigateToProfile,
     onNavigateToAgentAnalysis,
-    onLogout,
+    onNavigateToFeedback,
 }: LandingPageProps) {
-    const { t, i18n } = useTranslation();
-    const [greeting, setGreeting] = useState('');
-    const [currentDate, setCurrentDate] = useState('');
-    const [currentTime, setCurrentTime] = useState(new Date());
+    const { t } = useTranslation();
+    const { schedules, isLoading, markAsTaken, getTodaySchedules } = useMedicationSchedule();
+    const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+    const [confirmingDose, setConfirmingDose] = useState<FlatReminder | null>(null);
+    const [feedbackText, setFeedbackText] = useState('');
+    const [justConfirmed, setJustConfirmed] = useState(false);
 
-    // 获取真实的服药计划数据
-    const { schedules, getTodaySchedules, markAsTaken, isLoading, loadSchedules } = useMedicationSchedule();
-
-    // 组件挂载时刷新数据（确保从其他页面返回时获取最新数据）
-    useEffect(() => {
-        loadSchedules();
-    }, [loadSchedules]);
-
-    // 设置问候语和日期
-    useEffect(() => {
-        const hour = new Date().getHours();
-        if (hour < 12) {
-            setGreeting(t('landing.goodMorning', '早上好'));
-        } else if (hour < 18) {
-            setGreeting(t('landing.goodAfternoon', '下午好'));
-        } else {
-            setGreeting(t('landing.goodEvening', '晚上好'));
-        }
-
-        // 根据当前语言设置日期格式
-        const localeMap: Record<string, string> = {
-            'zh-CN': 'zh-CN',
-            'zh-TW': 'zh-TW',
-            'en': 'en-US',
-        };
-        const currentLocale = localeMap[i18n.language] || i18n.language;
-
-        const options: Intl.DateTimeFormatOptions = {
-            month: 'long',
-            day: 'numeric',
-            weekday: 'long',
-        };
-        setCurrentDate(new Date().toLocaleDateString(currentLocale, options));
-    }, [t, i18n.language]);
-
-    // 每分钟更新一次当前时间（用于重新计算过期状态）
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setCurrentTime(new Date());
-        }, 60000); // 每分钟更新
-        return () => clearInterval(timer);
-    }, []);
-
-    // 构建今日提醒列表（从真实数据）
-    const todayReminders = useMemo((): TodayReminder[] => {
+    // 今日所有提醒展开
+    const todayReminders = useMemo((): FlatReminder[] => {
         const todaySchedules = getTodaySchedules();
-        const reminders: TodayReminder[] = [];
-
-        todaySchedules.forEach(schedule => {
-            schedule.reminders.forEach(reminder => {
+        const reminders: FlatReminder[] = [];
+        todaySchedules.forEach((schedule: MedicationSchedule) => {
+            schedule.reminders.forEach((reminder: MedicationReminder) => {
                 reminders.push({
-                    id: `${schedule.id}_${reminder.id}`,
                     scheduleId: schedule.id,
                     reminderId: reminder.id,
                     name: schedule.medicationName,
                     time: reminder.time,
-                    dosage: reminder.dosage || schedule.medicationDosage,
+                    dosage: reminder.dosage,
                     taken: reminder.taken,
                     missed: !reminder.taken && isMissed(reminder.time),
                 });
             });
         });
+        return reminders.sort((a, b) => a.time.localeCompare(b.time));
+    }, [schedules, getTodaySchedules]);
 
-        // 按时间排序
-        reminders.sort((a, b) => a.time.localeCompare(b.time));
+    const stats = useMemo(() => ({
+        total: todayReminders.length,
+        taken: todayReminders.filter(r => r.taken).length,
+        pending: todayReminders.filter(r => !r.taken && !r.missed).length,
+        missed: todayReminders.filter(r => r.missed).length,
+    }), [todayReminders]);
 
-        return reminders;
-    }, [getTodaySchedules, currentTime, schedules]);
+    const nextDose = useMemo(() => getNextDose(todayReminders), [todayReminders]);
 
-    // 计算统计数据
-    const pendingCount = todayReminders.filter(r => !r.taken && !r.missed).length;
-    const completedCount = todayReminders.filter(r => r.taken).length;
-    const missedCount = todayReminders.filter(r => r.missed).length;
+    // 刷新时钟
+    const [currentTime, setCurrentTime] = useState(new Date());
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+        return () => clearInterval(timer);
+    }, []);
 
-    // 计算下次提醒（第一个未服用且未过期的）
-    const nextReminder = useMemo(() => {
-        // 找到下一个待服用的（未服用且未过期超过2小时）
-        const next = todayReminders.find(r => !r.taken && !r.missed);
+    const dateStr = currentTime.toLocaleDateString('zh-CN', {
+        year: 'numeric', month: 'long', day: 'numeric',
+        weekday: 'long',
+    });
 
-        if (next) {
-            return { time: next.time, name: next.name, isToday: true };
+    // 确认服药流程
+    const handleFABClick = useCallback(() => {
+        if (nextDose) {
+            setConfirmingDose(nextDose);
+            setShowFeedbackSheet(true);
+            setFeedbackText('');
         }
+    }, [nextDose]);
 
-        // 如果今日全部完成或错过，显示明日第一次
-        const todaySchedules = getTodaySchedules();
-        if (todaySchedules.length > 0) {
-            // 找到最早的提醒时间
-            let earliestTime = '23:59';
-            let earliestName = '';
+    const handleConfirmDose = useCallback(async () => {
+        if (!confirmingDose) return;
+        await markAsTaken(confirmingDose.scheduleId, confirmingDose.reminderId);
+        setShowFeedbackSheet(false);
+        setJustConfirmed(true);
+        setTimeout(() => setJustConfirmed(false), 2000);
 
-            todaySchedules.forEach(schedule => {
-                schedule.reminders.forEach(reminder => {
-                    if (reminder.time < earliestTime) {
-                        earliestTime = reminder.time;
-                        earliestName = schedule.medicationName;
-                    }
-                });
-            });
-
-            if (earliestName) {
-                return { time: earliestTime, name: earliestName, isToday: false };
-            }
+        // 如果有反馈内容，可以导航到完整反馈页
+        if (feedbackText.trim() && onNavigateToFeedback) {
+            onNavigateToFeedback(confirmingDose.name, confirmingDose.scheduleId);
         }
+    }, [confirmingDose, feedbackText, markAsTaken, onNavigateToFeedback]);
 
-        return null;
-    }, [todayReminders, getTodaySchedules]);
-
-    // 处理服药确认
-    const handleTakeMedicine = async (scheduleId: string, reminderId: string) => {
-        await markAsTaken(scheduleId, reminderId);
+    const cancelFeedback = () => {
+        setShowFeedbackSheet(false);
+        setConfirmingDose(null);
+        setFeedbackText('');
     };
+
+    if (isLoading) {
+        return (
+            <div className="landing-loading">
+                <div className="loading-spinner"><IconPill size={32} /></div>
+                <p>{t('landing.loading', '加载中...')}</p>
+            </div>
+        );
+    }
 
     return (
         <div className="landing-page">
-            {/* 顶部问候区 */}
+            {/* 顶部 Header */}
             <header className="landing-header">
                 <div className="greeting-section">
                     <h1 className="greeting-text">
-                        {greeting}，{userName || t('landing.user', '用户')}
+                        {getGreeting(t)}{userName ? `，${userName}` : ''}
                     </h1>
-                    <p className="date-text">{currentDate}</p>
+                    <p className="date-text">{dateStr}</p>
                 </div>
-                <div className="header-avatar" onClick={onNavigateToProfile}>
-                    <span className="avatar-icon">👤</span>
+                {/* 天气占位 */}
+                <div className="weather-badge">
+                    <span className="weather-icon"><IconSun size={18} /></span>
+                    <span className="weather-temp">23°</span>
                 </div>
             </header>
 
-            {/* 用药提醒卡片 */}
-            <section className="reminder-card">
-                <div className="reminder-header">
-                    <span className="reminder-icon">💊</span>
-                    <h2 className="reminder-title">{t('landing.todayMedication', '今日用药')}</h2>
-                </div>
-                <div className="reminder-stats">
-                    <div className="stat-item">
-                        <span className="stat-number pending">{pendingCount}</span>
-                        <span className="stat-label">{t('landing.pending', '待服用')}</span>
-                    </div>
-                    <div className="stat-divider" />
-                    <div className="stat-item">
-                        <span className="stat-number completed">{completedCount}</span>
-                        <span className="stat-label">{t('landing.completed', '已完成')}</span>
-                    </div>
-                    {missedCount > 0 && (
+            {/* Hero Section — 下次服药 */}
+            <section className="hero-section">
+                <div className="hero-bg">
+                    {nextDose ? (
                         <>
-                            <div className="stat-divider" />
-                            <div className="stat-item">
-                                <span className="stat-number missed">{missedCount}</span>
-                                <span className="stat-label">{t('landing.missed', '已错过')}</span>
+                            <p className="hero-label">
+                                {t('landing.nextDose', '下次服药')}
+                            </p>
+                            <p className="hero-med-name">{nextDose.name}</p>
+                            <p className="hero-time">
+                                <span className="time-icon">⏱</span>
+                                {nextDose.time} · {nextDose.dosage}
+                            </p>
+
+                            {/* 超大 FAB */}
+                            <button
+                                className={`fab-confirm ${justConfirmed ? 'confirmed' : ''}`}
+                                onClick={handleFABClick}
+                                disabled={justConfirmed}
+                            >
+                                <span className="fab-icon">
+                                    {justConfirmed ? <IconCheck size={36} /> : <IconPill size={36} />}
+                                </span>
+                                <span className="fab-text">
+                                    {justConfirmed
+                                        ? t('landing.confirmed', '已确认')
+                                        : t('landing.confirmTake', '确认服用')}
+                                </span>
+                            </button>
+
+                            {/* 下方计划详情 */}
+                            <div className="next-plan-detail">
+                                {todayReminders
+                                    .filter(r => !r.taken && !r.missed && r.reminderId !== nextDose.reminderId)
+                                    .slice(0, 3)
+                                    .map(r => (
+                                        <div key={r.reminderId} className="next-plan-item">
+                                            <span className="plan-time">{r.time}</span>
+                                            <span className="plan-name">{r.name}</span>
+                                            <span className="plan-dosage">{r.dosage}</span>
+                                        </div>
+                                    ))}
                             </div>
                         </>
+                    ) : (
+                        <div className="hero-empty">
+                            <span className="hero-empty-icon"><IconCheck size={40} /></span>
+                            <p className="hero-empty-text">
+                                {stats.total > 0
+                                    ? t('landing.allDone', '今日用药已全部完成！')
+                                    : t('landing.noSchedule', '暂无用药计划')}
+                            </p>
+                        </div>
                     )}
                 </div>
-                {nextReminder ? (
-                    <div className="next-reminder">
-                        <span className="next-label">
-                            {nextReminder.isToday
-                                ? t('landing.nextReminder', '下次提醒')
-                                : t('landing.tomorrowReminder', '明日提醒')}
-                        </span>
-                        <span className="next-time">
-                            {nextReminder.time} - {nextReminder.name}
-                        </span>
-                    </div>
-                ) : todayReminders.length === 0 ? (
-                    <div className="next-reminder">
-                        <span className="next-label">{t('landing.noSchedule', '暂无用药计划')}</span>
-                    </div>
-                ) : null}
             </section>
 
-            {/* 快捷功能区 */}
+            {/* 用药概览卡片 — 点击跳转 */}
+            {stats.total > 0 && (
+                <section
+                    className="summary-card"
+                    onClick={onNavigateToSchedules}
+                    role="button"
+                    tabIndex={0}
+                >
+                    <div className="summary-header">
+                        <span className="summary-title">
+                            {t('landing.todayPlan', '今日用药')}
+                        </span>
+                        <span className="summary-arrow">›</span>
+                    </div>
+                    <div className="summary-stats">
+                        <div className="summary-stat">
+                            <span className="stat-num completed">{stats.taken}</span>
+                            <span className="stat-lbl">{t('landing.taken', '已服用')}</span>
+                        </div>
+                        <div className="summary-divider" />
+                        <div className="summary-stat">
+                            <span className="stat-num pending">{stats.pending}</span>
+                            <span className="stat-lbl">{t('landing.pending', '待服用')}</span>
+                        </div>
+                        {stats.missed > 0 && (
+                            <>
+                                <div className="summary-divider" />
+                                <div className="summary-stat">
+                                    <span className="stat-num missed">{stats.missed}</span>
+                                    <span className="stat-lbl">{t('landing.missed', '已错过')}</span>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    <div className="summary-progress">
+                        <div
+                            className="progress-fill"
+                            style={{ width: `${stats.total > 0 ? (stats.taken / stats.total) * 100 : 0}%` }}
+                        />
+                    </div>
+                </section>
+            )}
+
+            {/* 快捷操作 — 仅保留 2 个 */}
             <section className="quick-actions">
-                <h3 className="section-title">{t('landing.quickActions', '快捷操作')}</h3>
-                <div className="actions-grid">
-                    <button className="action-card" onClick={onNavigateToUpload}>
-                        <span className="action-icon">📷</span>
-                        <span className="action-label">{t('landing.scanRecord', '扫描病例')}</span>
-                        <span className="action-desc">{t('landing.scanRecordDesc', '拍照识别处方')}</span>
-                    </button>
-
-                    <button className="action-card" onClick={onNavigateToSchedules}>
-                        <span className="action-icon">⏰</span>
-                        <span className="action-label">{t('landing.reminders', '用药提醒')}</span>
-                        <span className="action-desc">{t('landing.remindersDesc', '管理服药计划')}</span>
-                    </button>
-
-                    <button className="action-card" onClick={onNavigateToProfile}>
-                        <span className="action-icon">📊</span>
-                        <span className="action-label">{t('landing.healthProfile', '健康档案')}</span>
-                        <span className="action-desc">{t('landing.healthProfileDesc', '个人健康信息')}</span>
-                    </button>
-
-                    <button className="action-card" onClick={onNavigateToAgentAnalysis}>
-                        <span className="action-icon">🔬</span>
-                        <span className="action-label">{t('landing.drugGuide', '用药指南')}</span>
-                        <span className="action-desc">{t('landing.drugGuideDesc', '药物知识库')}</span>
-                    </button>
-                </div>
-            </section>
-
-            {/* 最近用药记录 */}
-            <section className="recent-records">
-                <h3 className="section-title">{t('landing.recentRecords', '最近记录')}</h3>
-                {isLoading ? (
-                    <div className="loading-hint">{t('app.loading', '加载中...')}</div>
-                ) : todayReminders.length === 0 ? (
-                    <div className="empty-hint">{t('landing.noRecords', '暂无用药记录')}</div>
-                ) : (
-                    <div className="records-list">
-                        {todayReminders.map((reminder) => (
-                            <div
-                                key={reminder.id}
-                                className={`record-item ${reminder.taken ? 'taken' : ''} ${reminder.missed ? 'missed' : ''}`}
-                            >
-                                <div className="record-status">
-                                    {reminder.taken ? (
-                                        <span className="status-icon done">✓</span>
-                                    ) : reminder.missed ? (
-                                        <span className="status-icon missed">✗</span>
-                                    ) : (
-                                        <span className="status-icon pending">○</span>
-                                    )}
-                                </div>
-                                <div className="record-info">
-                                    <span className="record-name">{reminder.name}</span>
-                                    <span className="record-time">
-                                        {reminder.time}
-                                        {reminder.missed && <span className="missed-tag"> (已错过)</span>}
-                                    </span>
-                                </div>
-                                {!reminder.taken && !reminder.missed && (
-                                    <button
-                                        className="take-btn"
-                                        onClick={() => handleTakeMedicine(reminder.scheduleId, reminder.reminderId)}
-                                    >
-                                        {t('landing.takeMedicine', '服用')}
-                                    </button>
-                                )}
-                            </div>
-                        ))}
+                <button className="quick-card" onClick={onNavigateToUpload}>
+                    <span className="quick-icon"><IconCamera size={24} /></span>
+                    <div className="quick-info">
+                        <span className="quick-label">{t('landing.scanRecord', '扫描病例')}</span>
+                        <span className="quick-desc">{t('landing.scanDesc', '拍照识别药物信息')}</span>
                     </div>
-                )}
-            </section>
-
-            {/* 退出登录按钮 */}
-            <section className="logout-section">
-                <button className="logout-btn" onClick={onLogout}>
-                    <span className="logout-icon">🚪</span>
-                    <span>{t('auth.logout', '退出登录')}</span>
+                </button>
+                <button className="quick-card" onClick={onNavigateToAgentAnalysis}>
+                    <span className="quick-icon"><IconGuide size={24} /></span>
+                    <div className="quick-info">
+                        <span className="quick-label">{t('landing.medGuide', '用药指南')}</span>
+                        <span className="quick-desc">{t('landing.guideDesc', 'AI 智能药物分析')}</span>
+                    </div>
                 </button>
             </section>
 
-            {/* 底部占位，避免内容被导航栏遮挡 */}
+            {/* 底部留白 */}
             <div className="nav-spacer" />
+
+            {/* 反馈浮层 */}
+            {showFeedbackSheet && confirmingDose && (
+                <div className="feedback-overlay" onClick={cancelFeedback}>
+                    <div className="feedback-sheet" onClick={e => e.stopPropagation()}>
+                        <div className="sheet-header">
+                            <h3>{t('landing.feedbackTitle', '服药反馈')}</h3>
+                            <p className="sheet-med">
+                                {confirmingDose.name} · {confirmingDose.time}
+                            </p>
+                        </div>
+
+                        <div className="sheet-moods">
+                            {[
+                                { label: t('feedback.good', '正常') },
+                                { label: t('feedback.dizzy', '头晕') },
+                                { label: t('feedback.nausea', '恶心') },
+                            ].map(mood => (
+                                <button
+                                    key={mood.label}
+                                    className={`mood-chip ${feedbackText === mood.label ? 'active' : ''}`}
+                                    onClick={() => setFeedbackText(mood.label)}
+                                >
+                                    <span>{mood.label}</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        <textarea
+                            className="sheet-textarea"
+                            placeholder={t('landing.feedbackPlaceholder', '还有其他感受吗？（可选）')}
+                            value={feedbackText.startsWith('正常') || feedbackText.startsWith('头晕') || feedbackText.startsWith('恶心') ? '' : feedbackText}
+                            onChange={e => setFeedbackText(e.target.value)}
+                            rows={3}
+                        />
+
+                        <div className="sheet-actions">
+                            <button className="sheet-cancel" onClick={cancelFeedback}>
+                                {t('common.cancel', '取消')}
+                            </button>
+                            <button className="sheet-confirm" onClick={handleConfirmDose}>
+                                {t('landing.confirmTake', '确认服用')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
-
-export default LandingPage;

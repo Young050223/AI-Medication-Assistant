@@ -338,9 +338,73 @@ export async function searchSimilarQueries(
     }
 }
 
+// =============================================
+// Agent Chat (多轮对话)
+// =============================================
+
+export interface ChatRequest {
+    conversationId?: string;
+    message: string;
+    userId?: string;
+    language?: 'zh-CN' | 'zh-TW' | 'en';
+    medications?: string[];
+}
+
+export interface ChatResponse {
+    success: boolean;
+    conversationId: string;
+    reply: string;
+    error?: string;
+}
+
+/**
+ * 多轮对话 — 调用 agent-chat Edge Function
+ */
+export async function chatWithAgent(request: ChatRequest): Promise<ChatResponse> {
+    const startTime = Date.now();
+    console.log('[agentApi] 💬 Agent Chat 发送消息');
+
+    try {
+        const url = getEdgeFunctionUrl('agent-chat');
+        const headers = await getAuthHeaders();
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(request),
+        });
+
+        const elapsed = Date.now() - startTime;
+        console.log(`[agentApi] 💬 Chat 响应: status=${response.status} (${elapsed}ms)`);
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            return {
+                success: false,
+                conversationId: request.conversationId || 'local',
+                reply: '',
+                error: data.error || `请求失败: ${response.status}`,
+            };
+        }
+
+        return data as ChatResponse;
+    } catch (error) {
+        const elapsed = Date.now() - startTime;
+        console.error(`[agentApi] 💬 Chat 错误 (${elapsed}ms):`, error);
+        return {
+            success: false,
+            conversationId: request.conversationId || 'local',
+            reply: '',
+            error: error instanceof Error ? error.message : '网络请求失败',
+        };
+    }
+}
+
 export default {
     analyzeDrug,
     checkRisks,
     generateEmbedding,
     searchSimilarQueries,
+    chatWithAgent,
 };

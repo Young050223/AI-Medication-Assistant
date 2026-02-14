@@ -1,169 +1,164 @@
 /**
  * @file HealthProfilePage.css
- * @description 健康档案页面样式 - 老年友好设计
- * @author AI用药助手开发团队
- * @created 2026-01-17
+ * @description 健康档案页面 — Warm Minimalist
  */
 
-/* 加载状态 */
 .health-profile-loading {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: #ffffff;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
 }
 
-.health-profile-loading .loading-spinner {
-    font-size: 64px;
-    animation: pulse 1.5s ease-in-out infinite;
-}
-
-/* 页面容器 */
 .health-profile-page {
     min-height: 100vh;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    padding: 60px 16px 32px;
-    padding-top: calc(60px + env(safe-area-inset-top, 0px));
+    background: var(--bg-primary);
+    padding: 0 20px;
+    padding-top: env(safe-area-inset-top, 16px);
+    padding-bottom: 32px;
 }
 
-.health-profile-container {
-    max-width: 500px;
-    margin: 0 auto;
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 0 20px;
 }
 
-/* 头部 */
-.health-profile-header {
-    text-align: center;
-    margin-bottom: 24px;
-    color: #ffffff;
+.back-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    padding: 0;
+    flex-shrink: 0;
 }
 
-.page-title {
-    font-size: 28px;
-    font-weight: 700;
-    margin: 0 0 8px 0;
+.back-button:active {
+    background: var(--bg-card-hover);
 }
 
-.page-subtitle {
-    font-size: 16px;
-    opacity: 0.9;
+.profile-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-primary);
     margin: 0;
 }
 
-/* 表单 */
-.health-profile-form {
-    background: #ffffff;
-    border-radius: 20px;
-    padding: 24px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+.profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
 }
 
-/* 表单区域 */
-.form-section {
-    margin-bottom: 24px;
+.profile-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    box-shadow: var(--shadow-card);
 }
 
-.section-title {
-    font-size: 20px;
+.profile-section .section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 14px 0;
+}
+
+.profile-field {
+    margin-bottom: 16px;
+}
+
+.profile-field:last-child {
+    margin-bottom: 0;
+}
+
+.field-label {
+    display: block;
+    font-size: 14px;
     font-weight: 600;
-    color: #374151;
-    margin: 0 0 16px 0;
-    padding-bottom: 8px;
-    border-bottom: 2px solid #e5e7eb;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
 }
 
-/* 性别选择 */
+.field-input {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 16px;
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color var(--transition-fast);
+}
+
+.field-input:focus {
+    outline: none;
+    border-color: var(--accent-sage);
+    box-shadow: 0 0 0 3px var(--accent-sage-bg);
+}
+
+.field-input::placeholder {
+    color: var(--text-muted);
+}
+
 .gender-options {
     display: flex;
-    gap: 12px;
+    gap: 10px;
 }
 
 .gender-btn {
     flex: 1;
-    padding: 14px;
-    font-size: 18px;
+    padding: 12px;
+    font-size: 15px;
     font-weight: 600;
-    color: #6b7280;
-    background: #f3f4f6;
-    border: 2px solid #e5e7eb;
-    border-radius: 12px;
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.2s;
-}
-
-.gender-btn:hover {
-    border-color: #10b981;
+    transition: all var(--transition-fast);
 }
 
 .gender-btn.active {
-    color: #ffffff;
-    background: #10b981;
-    border-color: #10b981;
+    border-color: var(--accent-sage);
+    background: var(--accent-sage-bg);
+    color: var(--accent-sage-deep);
 }
 
-.gender-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* 表单行（并排） */
-.form-row {
-    display: flex;
-    gap: 16px;
-}
-
-.form-group.half {
-    flex: 1;
-}
-
-/* 保存按钮 */
 .save-button {
     width: 100%;
-    padding: 18px;
-    font-size: 22px;
+    padding: 16px;
+    font-size: 18px;
     font-weight: 700;
-    color: #ffffff;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: var(--text-on-accent);
+    background: var(--accent-sage);
     border: none;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
     margin-top: 8px;
+    transition: background var(--transition-fast), transform var(--transition-fast);
 }
 
 .save-button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+    background: var(--accent-sage-deep);
+    transform: translateY(-1px);
 }
 
 .save-button:disabled {
-    opacity: 0.7;
+    opacity: 0.5;
     cursor: not-allowed;
-}
-
-/* 响应式设计 */
-@media (max-width: 480px) {
-    .health-profile-page {
-        padding: 50px 12px 24px;
-    }
-
-    .health-profile-form {
-        padding: 20px;
-    }
-
-    .page-title {
-        font-size: 24px;
-    }
-
-    .form-row {
-        flex-direction: column;
-        gap: 0;
-    }
-
-    .form-group.half {
-        flex: none;
-    }
 }

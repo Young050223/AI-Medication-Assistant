@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useSpeechRecognition } from '../hooks/common/useSpeechRecognition';
 import { useMedicationFeedback } from '../hooks/medication/useMedicationFeedback';
 import { useMedicationSchedule } from '../hooks/medication/useMedicationSchedule';
+import { IconCheck, IconBack, IconKeyboard, IconMic } from '../components/Icons';
 import {
     MOOD_CONFIG,
     COMMON_SIDE_EFFECTS_KEYS,
@@ -159,7 +160,7 @@ export function MedicationFeedbackPage({
         return (
             <div className="feedback-page">
                 <div className="success-overlay">
-                    <div className="success-icon">✓</div>
+                    <div className="success-icon"><IconCheck size={40} /></div>
                     <p className="success-text">{t('feedback.saved')}</p>
                 </div>
             </div>
@@ -171,7 +172,7 @@ export function MedicationFeedbackPage({
             {/* 头部 */}
             <div className="page-header feedback-header">
                 <button className="back-button" onClick={onBack}>
-                    ← {t('app.back')}
+                    <IconBack size={16} /> {t('app.back')}
                 </button>
                 <h1 className="page-title">{t('feedback.title')}</h1>
                 <div className="header-spacer" />
@@ -232,13 +233,13 @@ export function MedicationFeedbackPage({
                             className={`mode-btn ${inputMode === 'voice' ? 'active' : ''}`}
                             onClick={() => setInputMode('voice')}
                         >
-                            🎤 {t('feedback.voiceInput')}
+                            <IconMic size={16} /> {t('feedback.voiceInput')}
                         </button>
                         <button
                             className={`mode-btn ${inputMode === 'text' ? 'active' : ''}`}
                             onClick={() => setInputMode('text')}
                         >
-                            ⌨️ {t('feedback.textInput')}
+                            <IconKeyboard size={16} /> {t('feedback.textInput')}
                         </button>
                     </div>
                 </section>
@@ -269,7 +270,7 @@ export function MedicationFeedbackPage({
                                     onTouchStart={handleVoiceButton}
                                     onTouchEnd={() => isListening && stopListening()}
                                 >
-                                    <span className="voice-icon">{isListening ? '🔴' : '🎤'}</span>
+                                    <span className="voice-icon"><IconMic size={24} color={isListening ? '#e74c3c' : undefined} /></span>
                                     <span className="voice-text">
                                         {isListening ? t('feedback.recording') : t('feedback.tapToRecord')}
                                     </span>
