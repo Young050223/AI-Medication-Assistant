@@ -48,6 +48,188 @@
     box-shadow: var(--shadow-md);
 }
 
+.register-form .form-group {
+    margin-bottom: 16px;
+}
+
+.register-form .form-label {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.register-form .form-input {
+    width: 100%;
+    padding: 16px 18px;
+    font-size: 18px;
+    font-family: inherit;
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    box-sizing: border-box;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.register-form .form-input:focus {
+    outline: none;
+    border-color: var(--accent-sage);
+    box-shadow: 0 0 0 3px var(--accent-sage-bg);
+}
+
+.register-form .form-input::placeholder {
+    color: var(--text-muted);
+    font-size: inherit;
+    font-family: inherit;
+}
+
+.register-form .form-input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.register-form .form-input[type="password"] {
+    color: var(--text-secondary);
+}
+
+/* Username duplicate hint */
+.username-duplicate-hint {
+    margin-top: 6px;
+    padding: 10px 14px;
+    background: var(--accent-warm-bg);
+    border: 1px solid var(--accent-warm-light);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.username-duplicate-hint .hint-label {
+    font-weight: 700;
+    color: var(--color-danger);
+    display: block;
+    margin-bottom: 4px;
+}
+
+.username-suggestion {
+    display: inline-block;
+    padding: 4px 10px;
+    margin: 4px 6px 0 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--accent-sage-light);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--accent-sage-deep);
+    font-weight: 600;
+    transition: background var(--transition-fast);
+}
+
+.username-suggestion:active {
+    background: var(--accent-sage-bg);
+}
+
+/* Email already-registered modal */
+.email-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.email-modal {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: 32px 24px;
+    max-width: 340px;
+    width: 100%;
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+    animation: modalFadeIn 0.25s ease;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.92);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.email-modal-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+}
+
+.email-modal-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 8px 0;
+}
+
+.email-modal-desc {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin: 0 0 20px 0;
+    line-height: 1.5;
+}
+
+.email-modal-login-btn {
+    width: 100%;
+    padding: 14px;
+    font-size: 18px;
+    font-weight: 700;
+    background: var(--accent-sage);
+    color: var(--text-on-accent);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: background var(--transition-fast);
+}
+
+.email-modal-login-btn:active {
+    background: var(--accent-sage-deep);
+}
+
+.email-modal-close-btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.error-message {
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    color: var(--color-danger);
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+}
+
 .register-button {
     width: 100%;
     padding: 17px;

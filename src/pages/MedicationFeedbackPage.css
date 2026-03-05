@@ -6,7 +6,7 @@
 .feedback-page {
     min-height: 100vh;
     background: var(--bg-primary);
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: calc(16px + env(safe-area-inset-top, 20px));
 }
 
 .feedback-header {

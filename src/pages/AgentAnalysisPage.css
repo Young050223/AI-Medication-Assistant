@@ -7,7 +7,7 @@
 .agent-analysis-page {
     min-height: 100vh;
     background: var(--bg-primary);
-    padding-top: env(safe-area-inset-top, 0);
+    padding-top: calc(16px + env(safe-area-inset-top, 20px));
 }
 
 .agent-header {

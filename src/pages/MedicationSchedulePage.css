@@ -7,7 +7,7 @@
 .schedule-page {
     min-height: 100vh;
     background: var(--bg-primary);
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: calc(16px + env(safe-area-inset-top, 20px));
 }
 
 /* Header */
@@ -16,6 +16,7 @@
     align-items: center;
     gap: 12px;
     padding: 16px 20px;
+    position: relative;
 }
 
 .schedule-back-btn {
@@ -246,14 +247,32 @@
     background: var(--bg-input);
     border-radius: var(--radius-sm);
     transition: background var(--transition-fast);
+    border-left: 3px solid transparent;
 }
 
 .reminder-row.taken {
+    border-left-color: var(--color-success);
+}
+
+.reminder-row.taken .reminder-time,
+.reminder-row.taken .reminder-dosage {
     opacity: 0.55;
+}
+
+.feedback-btn {
+    opacity: 1 !important;
+    font-size: 12px;
+    padding: 4px 10px;
 }
 
 .reminder-row.missed {
     background: var(--color-danger-bg);
+    border-left-color: var(--color-danger);
+}
+
+/* Today's upcoming (not taken, not missed) */
+.reminder-row:not(.taken):not(.missed) {
+    border-left-color: #FF9800;
 }
 
 .reminder-time {
@@ -275,6 +294,9 @@
     font-weight: 700;
     padding: 4px 10px;
     border-radius: var(--radius-full);
+    border: none;
+    cursor: pointer;
+    background: none;
 }
 
 .reminder-status.taken {
@@ -283,13 +305,47 @@
 }
 
 .reminder-status.pending {
-    color: var(--color-warning);
-    background: var(--color-warning-bg);
+    color: #FF9800;
+    background: rgba(255, 152, 0, 0.1);
 }
 
 .reminder-status.missed {
-    color: var(--color-danger);
-    background: var(--color-danger-bg);
+    color: #E53935;
+    background: rgba(229, 57, 53, 0.1);
+}
+
+/* Status toggle modal buttons */
+.status-option-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.status-option-btn.status-taken {
+    color: var(--color-success);
+    background: var(--color-success-bg);
+}
+
+.status-option-btn.status-taken:active {
+    background: #c8e6c9;
+}
+
+.status-option-btn.status-missed {
+    color: #E53935;
+    background: rgba(229, 57, 53, 0.08);
+}
+
+.status-option-btn.status-missed:active {
+    background: rgba(229, 57, 53, 0.18);
 }
 
 .take-btn {
@@ -328,44 +384,263 @@
 }
 
 .action-edit {
-    color: var(--accent-sage-deep);
-    background: var(--accent-sage-bg);
+    color: #5B7DB1;
+    background: rgba(91, 125, 177, 0.1);
     border: 1px solid transparent;
 }
 
 .action-delete {
-    color: var(--color-danger);
-    background: var(--color-danger-bg);
+    color: #8D6E63;
+    background: rgba(141, 110, 99, 0.1);
     border: 1px solid transparent;
 }
 
-/* Add button */
+/* ===== Add Button (header top-right) ===== */
 .add-schedule-btn {
-    position: fixed;
-    bottom: 88px;
+    position: absolute;
     right: 20px;
-    width: 56px;
-    height: 56px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background: var(--accent-sage);
     color: var(--text-on-accent);
     border: none;
     font-size: 28px;
     font-weight: 300;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-md);
     transition: transform var(--transition-fast);
     z-index: 100;
 }
 
 .add-schedule-btn:active {
-    transform: scale(0.9);
+    transform: translateY(-50%) scale(0.9);
+}
+
+/* ===== Modal Overlay ===== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-overlay);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 24px;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* ===== Modal Content (centered rectangle) ===== */
+.modal-content {
+    width: 100%;
+    max-width: 400px;
+    max-height: 80vh;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: scaleIn 0.25s ease;
+}
+
+@keyframes scaleIn {
+    from {
+        transform: scale(0.92);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
+}
+
+.modal-header h2 {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-input);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    color: var(--text-secondary);
+    transition: background var(--transition-fast);
+}
+
+.close-btn:active {
+    background: var(--bg-card-hover);
+}
+
+/* Scrollable form area */
+.modal-content>.form-group {
+    padding: 0 20px;
+}
+
+.modal-content>.form-group:first-of-type {
+    padding-top: 16px;
+}
+
+.modal-content>.form-group:last-of-type {
+    padding-bottom: 4px;
+}
+
+
+
+
+.modal-content {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.modal-content .form-group {
+    padding: 0 20px;
+    margin-bottom: 14px;
+}
+
+.modal-content .form-group:first-of-type {
+    margin-top: 16px;
+}
+
+.modal-content .form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.modal-content .form-input,
+.modal-content .form-textarea {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 16px;
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color var(--transition-fast);
+}
+
+.modal-content .form-input:focus,
+.modal-content .form-textarea:focus {
+    outline: none;
+    border-color: var(--accent-sage);
+    box-shadow: 0 0 0 3px var(--accent-sage-bg);
+}
+
+.modal-content .form-input[type="date"] {
+    max-width: 100%;
+    min-height: 48px;
+    line-height: 1.2;
+    -webkit-appearance: none;
+    appearance: none;
+    overflow: hidden;
+}
+
+.modal-content .form-textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+/* Reminder time rows */
+.reminder-time-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.reminder-time-row .time-input {
+    flex: 1;
+}
+
+.remove-time-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--color-danger-bg);
+    border: none;
+    color: var(--color-danger);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.add-time-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-sage-deep);
+    background: var(--accent-sage-bg);
+    border: 1px dashed var(--accent-sage-light);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.add-time-btn:active {
+    background: var(--accent-sage-light);
+}
+
+/* Modal actions */
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px calc(16px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--border-light);
+    flex-shrink: 0;
+}
+
+.modal-actions .secondary-button {
+    flex: 1;
+}
+
+.modal-actions .primary-button {
+    flex: 1.5;
 }
 
 /* ===== Nav Spacer ===== */
 .nav-spacer {
-    height: 90px;
+    height: 72px;
 }

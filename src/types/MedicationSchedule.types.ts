@@ -66,7 +66,9 @@ export interface ScheduleFormData {
     frequency: string;
     instructions: string;
     reminderTimes: string[];        // HH:mm 格式的时间列表
+    startDate: string;              // YYYY-MM-DD 开始日期
     durationDays: string;
+    graceMinutes: string;           // 确认服药时间窗口（±分钟）
 }
 
 /**

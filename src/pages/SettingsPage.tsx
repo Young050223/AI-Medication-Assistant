@@ -4,10 +4,10 @@
  * 包含语言切换、健康档案、账号设置、UI主题、会员方案、安全隐私
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/user/useAuth';
-import { IconProfile, IconLanguage, IconSun, IconMoon, IconHealthProfile, IconMembership, IconLock } from '../components/Icons';
+import { IconProfile, IconLanguage, IconSun, IconHealthProfile, IconMembership, IconLock } from '../components/Icons';
 import './SettingsPage.css';
 
 interface SettingsPageProps {
@@ -15,21 +15,41 @@ interface SettingsPageProps {
     onLogout: () => void;
 }
 
+type ThemeMode = 'light' | 'dark' | 'auto';
+
+const applyTheme = (mode: ThemeMode) => {
+    if (mode === 'auto') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else {
+        document.documentElement.setAttribute('data-theme', mode);
+    }
+};
+
 export default function SettingsPage({ onNavigateToHealthProfile, onLogout }: SettingsPageProps) {
     const { t, i18n } = useTranslation();
     const { user } = useAuth();
 
-    // 主题切换
-    const [isDark, setIsDark] = useState(
-        () => document.documentElement.getAttribute('data-theme') === 'dark'
-    );
+    // 主题
+    const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+        return (localStorage.getItem('theme') as ThemeMode) || 'auto';
+    });
 
-    const toggleTheme = () => {
-        const next = !isDark;
-        setIsDark(next);
-        document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
-        localStorage.setItem('theme', next ? 'dark' : 'light');
-    };
+    const handleThemeChange = useCallback((mode: ThemeMode) => {
+        setThemeMode(mode);
+        localStorage.setItem('theme', mode);
+        applyTheme(mode);
+    }, []);
+
+    // 监听系统主题变化（auto模式下）
+    useEffect(() => {
+        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+        const handler = () => {
+            if (themeMode === 'auto') applyTheme('auto');
+        };
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, [themeMode]);
 
     const handleLanguageChange = (lang: string) => {
         i18n.changeLanguage(lang);
@@ -79,16 +99,34 @@ export default function SettingsPage({ onNavigateToHealthProfile, onLogout }: Se
                 </div>
 
                 {/* UI 主题 */}
-                <div className="setting-item">
+                <div className="setting-item theme-setting">
                     <div className="setting-left">
-                        <span className="setting-icon">{isDark ? <IconMoon size={20} /> : <IconSun size={20} />}</span>
+                        <span className="setting-icon"><IconSun size={20} /></span>
                         <span className="setting-name">{t('settings.theme', '外观')}</span>
                     </div>
-                    <button className="theme-toggle" onClick={toggleTheme}>
-                        <span className={`toggle-track ${isDark ? 'dark' : ''}`}>
-                            <span className="toggle-thumb" />
-                        </span>
-                    </button>
+                    <div className="theme-options">
+                        <button
+                            className={`theme-option ${themeMode === 'light' ? 'active' : ''}`}
+                            onClick={() => handleThemeChange('light')}
+                        >
+                            <img src="/images/theme-light.png" alt="Light" className="theme-preview" />
+                            <span className="theme-label">{t('settings.themeLight', '浅色')}</span>
+                        </button>
+                        <button
+                            className={`theme-option ${themeMode === 'dark' ? 'active' : ''}`}
+                            onClick={() => handleThemeChange('dark')}
+                        >
+                            <img src="/images/theme-dark.png" alt="Dark" className="theme-preview" />
+                            <span className="theme-label">{t('settings.themeDark', '深色')}</span>
+                        </button>
+                        <button
+                            className={`theme-option ${themeMode === 'auto' ? 'active' : ''}`}
+                            onClick={() => handleThemeChange('auto')}
+                        >
+                            <img src="/images/theme-auto.png" alt="Auto" className="theme-preview" />
+                            <span className="theme-label">{t('settings.themeAuto', '自动')}</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 

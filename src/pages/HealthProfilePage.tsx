@@ -16,13 +16,14 @@ import './HealthProfilePage.css';
 
 interface HealthProfilePageProps {
     onComplete: () => void;
+    onBack?: () => void;
 }
 
 /**
  * 健康档案页面
  * 老年友好设计：大字体、简洁布局、清晰的输入提示
  */
-export function HealthProfilePage({ onComplete }: HealthProfilePageProps) {
+export function HealthProfilePage({ onComplete, onBack }: HealthProfilePageProps) {
     const { t } = useTranslation();
     const {
         profile,
@@ -123,6 +124,14 @@ export function HealthProfilePage({ onComplete }: HealthProfilePageProps) {
             <div className="health-profile-container">
                 {/* 头部 */}
                 <div className="health-profile-header">
+                    {onBack && (
+                        <button className="back-button" onClick={onBack} type="button">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M15 18l-6-6 6-6" />
+                            </svg>
+                            <span>{t('common.back', '返回')}</span>
+                        </button>
+                    )}
                     <h1 className="page-title">{t('healthProfile.title')}</h1>
                     <p className="page-subtitle">{t('healthProfile.subtitle')}</p>
                 </div>

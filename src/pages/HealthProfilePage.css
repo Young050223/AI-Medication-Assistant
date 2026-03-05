@@ -3,6 +3,7 @@
  * @description 健康档案页面 — Warm Minimalist
  */
 
+/* ===== Loading ===== */
 .health-profile-loading {
     min-height: 100vh;
     display: flex;
@@ -13,87 +14,100 @@
     color: var(--text-secondary);
 }
 
+/* ===== Page ===== */
 .health-profile-page {
-    min-height: 100vh;
     background: var(--bg-primary);
     padding: 0 20px;
-    padding-top: env(safe-area-inset-top, 16px);
-    padding-bottom: 32px;
+    padding-top: calc(20px + env(safe-area-inset-top, 20px));
+    padding-bottom: 40px;
 }
 
-.profile-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px 0 20px;
+/* ===== Header ===== */
+.health-profile-header {
+    margin-bottom: 20px;
 }
 
 .back-button {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-light);
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 20px;
+    gap: 4px;
+    background: none;
+    border: none;
+    padding: 8px 0;
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: background var(--transition-fast);
-    padding: 0;
-    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .back-button:active {
-    background: var(--bg-card-hover);
+    opacity: 0.6;
 }
 
-.profile-title {
-    font-size: 22px;
+.page-title {
+    font-size: 26px;
     font-weight: 800;
     color: var(--text-primary);
-    margin: 0;
+    margin: 0 0 6px 0;
+    line-height: 1.2;
 }
 
-.profile-form {
+.page-subtitle {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin: 0 0 0 0;
+    font-weight: 500;
+}
+
+/* ===== Form ===== */
+.health-profile-form {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 20px;
 }
 
-.profile-section {
+/* ===== Section Cards ===== */
+.form-section {
     background: var(--bg-secondary);
     border: 1px solid var(--border-light);
     border-radius: var(--radius-lg);
-    padding: 18px;
-    box-shadow: var(--shadow-card);
+    padding: 20px 18px;
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
 }
 
-.profile-section .section-title {
-    font-size: 16px;
+.form-section .section-title {
+    font-size: 17px;
     font-weight: 700;
     color: var(--text-primary);
-    margin: 0 0 14px 0;
+    margin: 0 0 18px 0;
+    padding: 0 0 10px 0;
+    border-bottom: 1px solid var(--border-light);
 }
 
-.profile-field {
-    margin-bottom: 16px;
+/* ===== Form Fields ===== */
+.health-profile-form .form-group {
+    margin-bottom: 18px;
+    overflow: hidden;
 }
 
-.profile-field:last-child {
+.health-profile-form .form-group:last-child {
     margin-bottom: 0;
 }
 
-.field-label {
+.health-profile-form .form-label {
     display: block;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-secondary);
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 
-.field-input {
+.health-profile-form .form-input {
     width: 100%;
+    max-width: 100%;
     padding: 14px 16px;
     font-size: 16px;
     border: 1.5px solid var(--border-light);
@@ -105,16 +119,38 @@
     transition: border-color var(--transition-fast);
 }
 
-.field-input:focus {
+.health-profile-form .form-input[type="date"] {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-height: 48px;
+    line-height: 1.2;
+    overflow: hidden;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.health-profile-form .form-input:focus {
     outline: none;
     border-color: var(--accent-sage);
     box-shadow: 0 0 0 3px var(--accent-sage-bg);
 }
 
-.field-input::placeholder {
+.health-profile-form .form-input::placeholder {
     color: var(--text-muted);
 }
 
+/* ===== Form Row (side-by-side) ===== */
+.form-row {
+    display: flex;
+    gap: 12px;
+}
+
+.form-row .form-group.half {
+    flex: 1;
+}
+
+/* ===== Gender Options ===== */
 .gender-options {
     display: flex;
     gap: 10px;
@@ -139,6 +175,33 @@
     color: var(--accent-sage-deep);
 }
 
+/* ===== Textarea ===== */
+.health-profile-form .form-textarea {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 16px;
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-family: inherit;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 90px;
+    transition: border-color var(--transition-fast);
+}
+
+.health-profile-form .form-textarea:focus {
+    outline: none;
+    border-color: var(--accent-sage);
+    box-shadow: 0 0 0 3px var(--accent-sage-bg);
+}
+
+.health-profile-form .form-textarea::placeholder {
+    color: var(--text-muted);
+}
+
+/* ===== Save Button ===== */
 .save-button {
     width: 100%;
     padding: 16px;
@@ -149,13 +212,16 @@
     border: none;
     border-radius: var(--radius-md);
     cursor: pointer;
-    margin-top: 8px;
     transition: background var(--transition-fast), transform var(--transition-fast);
 }
 
 .save-button:hover:not(:disabled) {
     background: var(--accent-sage-deep);
     transform: translateY(-1px);
+}
+
+.save-button:active:not(:disabled) {
+    transform: scale(0.98);
 }
 
 .save-button:disabled {

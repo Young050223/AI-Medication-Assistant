@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   // iOS 配置
   ios: {
     // 隐藏 WebView 的滚动条
-    scrollEnabled: true,
+    scrollEnabled: false,
     // 内容模式
     contentInset: 'automatic',
     // 允许内联媒体播放
@@ -22,7 +22,7 @@ const config: CapacitorConfig = {
   plugins: {
     // 键盘配置
     Keyboard: {
-      resize: 'body',
+      resize: 'none',
       resizeOnFullScreen: true,
     },
   },

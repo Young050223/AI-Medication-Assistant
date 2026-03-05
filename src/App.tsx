@@ -6,6 +6,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Capacitor } from '@capacitor/core';
+import { Keyboard } from '@capacitor/keyboard';
 import { useAuth } from './hooks/user/useAuth';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -34,15 +36,22 @@ function App() {
   const { isLoading, user, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState<PageType>('login');
   const [currentTab, setCurrentTab] = useState<NavItem>('home');
-  // 反馈页面预选数据
   const [feedbackMedication, setFeedbackMedication] = useState<string | undefined>();
   const [feedbackScheduleId, setFeedbackScheduleId] = useState<string | undefined>();
+  const [scheduleAutoAdd, setScheduleAutoAdd] = useState(false);
+  const [previousPage, setPreviousPage] = useState<PageType>('landing');
 
   // 初始化主题
   useEffect(() => {
     const saved = localStorage.getItem('theme');
     if (saved) {
       document.documentElement.setAttribute('data-theme', saved);
+    }
+
+    // iOS: 隐藏键盘上方的表单导航栏，禁止自动滚动
+    if (Capacitor.isNativePlatform()) {
+      Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => { });
+      Keyboard.setScroll({ isDisabled: true }).catch(() => { });
     }
   }, []);
 
@@ -70,6 +79,7 @@ function App() {
         setCurrentPage('agent');
         break;
       case 'schedule':
+        setScheduleAutoAdd(false);
         setCurrentPage('schedules');
         break;
       case 'me':
@@ -124,6 +134,10 @@ function App() {
             setCurrentPage('landing');
             setCurrentTab('home');
           }}
+          onBack={() => {
+            setCurrentPage(previousPage);
+            if (previousPage === 'settings') setCurrentTab('me');
+          }}
         />
       )}
 
@@ -140,9 +154,11 @@ function App() {
       {currentPage === 'schedules' && (
         <MedicationSchedulePage
           onBack={() => {
+            setScheduleAutoAdd(false);
             setCurrentPage('landing');
             setCurrentTab('home');
           }}
+          autoOpenAdd={scheduleAutoAdd}
           onNavigateToFeedback={(medicationName: string, scheduleId: string) => {
             setFeedbackMedication(medicationName);
             setFeedbackScheduleId(scheduleId);
@@ -171,6 +187,12 @@ function App() {
             setCurrentPage('uploadRecord');
           }}
           onNavigateToSchedules={() => {
+            setScheduleAutoAdd(false);
+            setCurrentPage('schedules');
+            setCurrentTab('schedule');
+          }}
+          onNavigateToAddSchedule={() => {
+            setScheduleAutoAdd(true);
             setCurrentPage('schedules');
             setCurrentTab('schedule');
           }}
@@ -198,6 +220,7 @@ function App() {
       {currentPage === 'settings' && (
         <SettingsPage
           onNavigateToHealthProfile={() => {
+            setPreviousPage('settings');
             setCurrentPage('healthProfile');
           }}
           onLogout={handleLogout}

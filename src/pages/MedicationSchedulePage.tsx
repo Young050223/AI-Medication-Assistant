@@ -12,6 +12,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { IconPill, IconBack, IconCalendar, IconCheck, IconEdit, IconTrash, IconClose } from '../components/Icons';
 import { useMedicationSchedule } from '../hooks/medication/useMedicationSchedule';
+import ConfirmDoseModal, { type DoseInfo } from '../components/ConfirmDoseModal';
 import type { ScheduleFormData } from '../types/MedicationSchedule.types';
 import { FREQUENCY_OPTIONS_KEYS } from '../types/MedicationFeedback.types';
 import './MedicationSchedulePage.css';
@@ -19,7 +20,28 @@ import './MedicationSchedulePage.css';
 interface MedicationSchedulePageProps {
     onBack: () => void;
     onNavigateToFeedback?: (medicationName: string, scheduleId: string) => void;
+    autoOpenAdd?: boolean;
 }
+
+// 频率 → 每日次数映射
+const FREQUENCY_COUNT: Record<string, number> = {
+    onceDaily: 1,
+    twiceDaily: 2,
+    thriceDaily: 3,
+    fourTimesDaily: 4,
+    asNeeded: 1,
+};
+
+// 根据次数生成默认提醒时间
+const getDefaultTimes = (count: number): string[] => {
+    const times: Record<number, string[]> = {
+        1: ['08:00'],
+        2: ['08:00', '20:00'],
+        3: ['08:00', '12:00', '18:00'],
+        4: ['08:00', '12:00', '16:00', '20:00'],
+    };
+    return times[count] || ['08:00'];
+};
 
 // 日历工具函数
 function getDaysInMonth(year: number, month: number): number {
@@ -43,34 +65,53 @@ function formatDateKey(date: Date): string {
 /**
  * 服药计划页面
  */
-export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: MedicationSchedulePageProps) {
-    const { t } = useTranslation();
+export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedulePageProps) {
+    const { t, i18n } = useTranslation();
     const {
         schedules,
         isLoading,
         isSaving,
         error,
         createSchedule,
+        updateSchedule,
         deleteSchedule,
         markAsTaken,
-        getTodaySchedules,
+        markAsMissed,
+        getSchedulesForDate,
+        setDateOverride,
     } = useMedicationSchedule();
 
     // 日历状态
     const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
     const [calendarYear, setCalendarYear] = useState(today.getFullYear());
     const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
     const [selectedDate, setSelectedDate] = useState(today);
 
     // 表单状态
-    const [showAddForm, setShowAddForm] = useState(false);
+    const [showAddForm, setShowAddForm] = useState(autoOpenAdd === true);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
+    const [, setEditScope] = useState<'today' | 'future'>('future');
+    const [showScopeDialog, setShowScopeDialog] = useState(false);
+    const [confirmingDose, setConfirmingDose] = useState<DoseInfo | null>(null);
+    const [statusToggle, setStatusToggle] = useState<{
+        scheduleId: string;
+        reminderId: string;
+        schedule: any;
+        reminder: any;
+        currentStatus: 'taken' | 'missed' | 'pending';
+        date: string;
+    } | null>(null);
     const [formData, setFormData] = useState<ScheduleFormData>({
         medicationName: '',
         medicationDosage: '',
         frequency: 'thriceDaily',
         instructions: '',
         reminderTimes: ['08:00', '12:00', '18:00'],
+        startDate: todayStr,
         durationDays: '7',
+        graceMinutes: '',
     });
 
     // 计算有用药的日期集合
@@ -86,19 +127,13 @@ export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: Medicat
         return dates;
     }, [schedules]);
 
-    // 根据选中日期过滤计划
+    // 根据选中日期过滤计划（带 override & 日状态）
     const selectedDateKey = formatDateKey(selectedDate);
     const isToday = isSameDay(selectedDate, today);
-    const filteredSchedules = isToday
-        ? getTodaySchedules()
-        : schedules.filter(schedule => {
-            if (!schedule.isActive) return false;
-            const startDate = schedule.startDate.split('T')[0];
-            const endDate = schedule.endDate?.split('T')[0];
-            if (selectedDateKey < startDate) return false;
-            if (endDate && selectedDateKey > endDate) return false;
-            return true;
-        });
+    const filteredSchedules = useMemo(
+        () => getSchedulesForDate(selectedDateKey),
+        [getSchedulesForDate, selectedDateKey]
+    );
 
     // 日历导航
     const handlePrevMonth = useCallback(() => {
@@ -122,12 +157,54 @@ export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: Medicat
     // 日历渲染数据
     const daysInMonth = getDaysInMonth(calendarYear, calendarMonth);
     const firstDay = getFirstDayOfMonth(calendarYear, calendarMonth);
-    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-    const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+    const weekdays = t('calendar.weekdays', {
+        returnObjects: true,
+        defaultValue: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    }) as string[];
+    const monthNames = t('calendar.months', {
+        returnObjects: true,
+        defaultValue: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+    }) as string[];
+    const calendarTitle = t('calendar.yearMonth', {
+        year: calendarYear,
+        month: monthNames[calendarMonth],
+        defaultValue: `${calendarYear}/${calendarMonth + 1}`,
+    });
+    const formatSelectedDate = (date: Date) => date.toLocaleDateString(
+        i18n.language || 'en',
+        { year: 'numeric', month: 'long', day: 'numeric' }
+    );
+    const normalizeFrequencyKey = (frequency: string) => {
+        const fallbackMap: Record<string, string> = {
+            '每日1次': 'onceDaily',
+            '每日2次': 'twiceDaily',
+            '每日3次': 'thriceDaily',
+            '每日4次': 'fourTimesDaily',
+            '需要时': 'asNeeded',
+            '需要時': 'asNeeded',
+            'Once daily': 'onceDaily',
+            'Twice daily': 'twiceDaily',
+            '3 times daily': 'thriceDaily',
+            '4 times daily': 'fourTimesDaily',
+            'As needed': 'asNeeded',
+        };
+        if (FREQUENCY_OPTIONS_KEYS.includes(frequency as typeof FREQUENCY_OPTIONS_KEYS[number])) {
+            return frequency;
+        }
+        return fallbackMap[frequency] || frequency;
+    };
 
     // 表单处理
     const handleInputChange = useCallback((field: keyof ScheduleFormData, value: string | string[]) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData(prev => {
+            const updated = { ...prev, [field]: value };
+            // 频率变化时自动同步提醒时间数量
+            if (field === 'frequency' && typeof value === 'string') {
+                const count = FREQUENCY_COUNT[value] || 1;
+                updated.reminderTimes = getDefaultTimes(count);
+            }
+            return updated;
+        });
     }, []);
 
     const handleAddReminderTime = useCallback(() => {
@@ -152,26 +229,141 @@ export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: Medicat
         }));
     }, []);
 
-    const handleSubmit = useCallback(async () => {
-        if (!formData.medicationName.trim()) {
-            alert(t('schedule.medicationNameRequired'));
+    const isReminderMissed = useCallback((reminder: any, schedule: any, dateKey: string) => {
+        if (reminder.taken) return false;
+        if (reminder.missed) return true;
+        const windowMinutes = schedule.allowWindowMinutes ?? schedule.graceMinutes ?? 0;
+        const [h, m] = reminder.time.split(':').map(Number);
+        const reminderMinutes = h * 60 + m;
+        const now = new Date();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const todayKeyStr = todayStr;
+
+        if (dateKey < todayKeyStr) return true;
+        if (dateKey > todayKeyStr) return false;
+        return nowMinutes > reminderMinutes + windowMinutes;
+    }, [todayStr]);
+
+    const startEdit = useCallback((schedule: any) => {
+        const duration = schedule.endDate
+            ? Math.max(1, Math.round((new Date(schedule.endDate).getTime() - new Date(schedule.startDate).getTime()) / 86400000))
+            : parseInt(formData.durationDays) || 7;
+        setFormData({
+            medicationName: schedule.medicationName,
+            medicationDosage: schedule.medicationDosage,
+            frequency: schedule.frequency,
+            instructions: schedule.instructions || '',
+            reminderTimes: schedule.reminders.map((r: any) => r.time),
+            startDate: schedule.startDate.split('T')[0],
+            durationDays: String(duration),
+            graceMinutes: schedule.allowWindowMinutes?.toString() || schedule.graceMinutes?.toString() || '',
+        });
+        setIsEditing(true);
+        setEditingScheduleId(schedule.id);
+        setEditScope('future');
+        setShowAddForm(true);
+    }, [formData.durationDays, setShowAddForm]);
+
+    const resetForm = useCallback(() => {
+        setFormData({
+            medicationName: '',
+            medicationDosage: '',
+            frequency: 'thriceDaily',
+            instructions: '',
+            reminderTimes: ['08:00', '12:00', '18:00'],
+            startDate: todayStr,
+            durationDays: '7',
+            graceMinutes: '',
+        });
+        setIsEditing(false);
+        setEditingScheduleId(null);
+        setEditScope('future');
+    }, [todayStr]);
+
+    const openConfirmModal = useCallback((schedule: any, reminder: any) => {
+        setConfirmingDose({
+            scheduleId: schedule.id,
+            reminderId: reminder.id,
+            medicationName: schedule.medicationName,
+            dosage: reminder.dosage || schedule.medicationDosage,
+            time: reminder.time,
+        });
+    }, []);
+
+    const handleDoseConfirmed = useCallback(async (scheduleId: string, reminderId: string) => {
+        await markAsTaken(scheduleId, reminderId, selectedDateKey);
+        setConfirmingDose(null);
+    }, [markAsTaken, selectedDateKey]);
+
+    const handleStatusChange = useCallback(async (newStatus: 'taken' | 'missed') => {
+        if (!statusToggle) return;
+        const { scheduleId, reminderId, schedule, reminder, date } = statusToggle;
+        if (newStatus === 'taken') {
+            setStatusToggle(null);
+            openConfirmModal(schedule, reminder);
+        } else {
+            await markAsMissed(scheduleId, reminderId, date);
+            setStatusToggle(null);
+        }
+    }, [statusToggle, markAsMissed, openConfirmModal]);
+
+    const doSave = useCallback(async (scope: 'today' | 'future') => {
+        if (!formData.medicationName.trim()) return;
+
+        const startDate = formData.startDate || todayStr;
+        const durationDays = parseInt(formData.durationDays) || 7;
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + durationDays);
+        const allowWindowMinutes = formData.graceMinutes ? parseInt(formData.graceMinutes, 10) : undefined;
+
+        if (isEditing && editingScheduleId) {
+            const overridePayload = {
+                medicationName: formData.medicationName,
+                medicationDosage: formData.medicationDosage,
+                frequency: formData.frequency,
+                instructions: formData.instructions,
+                reminderTimes: formData.reminderTimes,
+                allowWindowMinutes,
+            };
+
+            if (scope === 'today') {
+                await setDateOverride(editingScheduleId, selectedDateKey, overridePayload);
+            } else {
+                const base = schedules.find(s => s.id === editingScheduleId);
+                const newReminders = formData.reminderTimes.map((time, index) => ({
+                    id: base?.reminders[index]?.id || crypto.randomUUID(),
+                    time,
+                    dosage: formData.medicationDosage,
+                    taken: false,
+                }));
+
+                await updateSchedule(editingScheduleId, {
+                    medicationName: formData.medicationName,
+                    medicationDosage: formData.medicationDosage,
+                    frequency: formData.frequency,
+                    instructions: formData.instructions,
+                    startDate,
+                    endDate: endDate.toISOString().split('T')[0],
+                    reminders: newReminders,
+                    allowWindowMinutes,
+                    graceMinutes: allowWindowMinutes,
+                });
+            }
+            setShowAddForm(false);
+            resetForm();
             return;
         }
-
-        const frequencyText = t(`frequency.${formData.frequency}`);
-        const todayStr = new Date().toISOString().split('T')[0];
-        const durationDays = parseInt(formData.durationDays) || 7;
-        const endDate = new Date();
-        endDate.setDate(endDate.getDate() + durationDays);
 
         const scheduleData = {
             medicationName: formData.medicationName,
             medicationDosage: formData.medicationDosage,
-            frequency: frequencyText,
+            frequency: formData.frequency,
             instructions: formData.instructions,
-            startDate: todayStr,
+            startDate: startDate,
             endDate: endDate.toISOString().split('T')[0],
             isActive: true,
+            allowWindowMinutes,
+            graceMinutes: allowWindowMinutes,
             reminders: formData.reminderTimes.map((time) => ({
                 id: crypto.randomUUID(),
                 time,
@@ -182,19 +374,26 @@ export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: Medicat
 
         await createSchedule(scheduleData);
         setShowAddForm(false);
-        setFormData({
-            medicationName: '',
-            medicationDosage: '',
-            frequency: 'thriceDaily',
-            instructions: '',
-            reminderTimes: ['08:00', '12:00', '18:00'],
-            durationDays: '7',
-        });
-    }, [formData, createSchedule, t]);
+        resetForm();
+    }, [formData, createSchedule, t, todayStr, isEditing, editingScheduleId, setDateOverride, selectedDateKey, schedules, updateSchedule, resetForm]);
 
-    const handleMarkTaken = useCallback(async (scheduleId: string, reminderId: string) => {
-        await markAsTaken(scheduleId, reminderId);
-    }, [markAsTaken]);
+    const handleSubmit = useCallback(async () => {
+        if (!formData.medicationName.trim()) {
+            alert(t('schedule.medicationNameRequired'));
+            return;
+        }
+        if (isEditing && editingScheduleId) {
+            setShowScopeDialog(true);
+            return;
+        }
+        await doSave('future');
+    }, [formData.medicationName, t, isEditing, editingScheduleId, doSave]);
+
+    const handleSubmitWithScope = useCallback(async (scope: 'today' | 'future') => {
+        setEditScope(scope);
+        setShowScopeDialog(false);
+        await doSave(scope);
+    }, [doSave]);
 
     const handleDelete = useCallback(async (id: string) => {
         if (confirm(t('schedule.deleteConfirm'))) {
@@ -219,6 +418,12 @@ export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: Medicat
             <div className="schedule-header">
                 <button className="schedule-back-btn" onClick={onBack}><IconBack size={20} /></button>
                 <h1 className="schedule-title">{t('schedule.title')}</h1>
+                <button
+                    className="add-schedule-btn"
+                    onClick={() => { resetForm(); setShowAddForm(true); }}
+                >
+                    +
+                </button>
             </div>
 
             {/* Apple 原生风格日历 */}
@@ -227,7 +432,7 @@ export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: Medicat
                     <div className="calendar-nav">
                         <button className="calendar-arrow" onClick={handlePrevMonth}>‹</button>
                         <span className="calendar-month">
-                            {calendarYear}年{monthNames[calendarMonth]}
+                            {calendarTitle}
                         </span>
                         <button className="calendar-arrow" onClick={handleNextMonth}>›</button>
                     </div>
@@ -273,7 +478,7 @@ export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: Medicat
 
             {/* 日期标题 */}
             <h2 className="section-title">
-                <><IconCalendar size={18} /> {isToday ? t('schedule.todayMedication') : selectedDateKey}</>
+                <><IconCalendar size={18} /> {isToday ? t('schedule.todayMedication') : formatSelectedDate(selectedDate)}</>
             </h2>
 
             {/* 用药列表 */}
@@ -288,7 +493,11 @@ export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: Medicat
                         <div key={schedule.id} className="schedule-card">
                             <div className="schedule-card-header">
                                 <h3 className="schedule-med-name">{schedule.medicationName}</h3>
-                                <span className="schedule-frequency">{schedule.frequency}</span>
+                                {(() => {
+                                    const frequencyKey = normalizeFrequencyKey(schedule.frequency);
+                                    const frequencyLabel = t(`frequency.${frequencyKey}`, schedule.frequency);
+                                    return <span className="schedule-frequency">{frequencyLabel}</span>;
+                                })()}
                             </div>
 
                             {schedule.medicationDosage && (
@@ -301,47 +510,53 @@ export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: Medicat
 
                             <div className="reminder-list">
                                 {schedule.reminders.map(reminder => {
-                                    const isMissed = !reminder.taken && isToday &&
-                                        reminder.time < new Date().toTimeString().slice(0, 5);
+                                    const isMissed = isReminderMissed(reminder, schedule, selectedDateKey);
+                                    const isTaken = reminder.taken;
 
                                     return (
                                         <div
                                             key={reminder.id}
-                                            className={`reminder-row ${reminder.taken ? 'taken' : ''} ${isMissed ? 'missed' : ''}`}
+                                            className={`reminder-row ${isTaken ? 'taken' : ''} ${isMissed ? 'missed' : ''}`}
                                         >
                                             <span className="reminder-time">{reminder.time}</span>
                                             <span className="reminder-dosage">{reminder.dosage}</span>
 
-                                            {reminder.taken ? (
+                                            {isTaken ? (
                                                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                                    <span className="reminder-status taken">
+                                                    <button
+                                                        className="reminder-status taken"
+                                                        onClick={() => setStatusToggle({ scheduleId: schedule.id, reminderId: reminder.id, schedule, reminder, currentStatus: 'taken', date: selectedDateKey })}
+                                                    >
                                                         <IconCheck size={14} /> {t('schedule.taken')}
-                                                    </span>
-                                                    {onNavigateToFeedback && (
-                                                        <button
-                                                            className="take-btn"
-                                                            style={{ fontSize: '12px', padding: '4px 10px' }}
-                                                            onClick={() => onNavigateToFeedback(schedule.medicationName, schedule.id)}
-                                                        >
-                                                            <IconEdit size={14} />
-                                                        </button>
-                                                    )}
+                                                    </button>
+                                                    <button
+                                                        className="take-btn feedback-btn"
+                                                        onClick={() => openConfirmModal(schedule, reminder)}
+                                                    >
+                                                        <IconEdit size={14} />
+                                                    </button>
                                                 </div>
                                             ) : isMissed ? (
-                                                <span className="reminder-status missed">
+                                                <button
+                                                    className="reminder-status missed"
+                                                    onClick={() => setStatusToggle({ scheduleId: schedule.id, reminderId: reminder.id, schedule, reminder, currentStatus: 'missed', date: selectedDateKey })}
+                                                >
                                                     {t('schedule.missed', '已错过')}
-                                                </span>
+                                                </button>
                                             ) : isToday ? (
                                                 <button
                                                     className="take-btn"
-                                                    onClick={() => handleMarkTaken(schedule.id, reminder.id)}
+                                                    onClick={() => openConfirmModal(schedule, reminder)}
                                                 >
                                                     {t('schedule.confirmTake')}
                                                 </button>
                                             ) : (
-                                                <span className="reminder-status pending">
+                                                <button
+                                                    className="reminder-status pending"
+                                                    onClick={() => setStatusToggle({ scheduleId: schedule.id, reminderId: reminder.id, schedule, reminder, currentStatus: 'pending', date: selectedDateKey })}
+                                                >
                                                     {t('schedule.pending', '待服用')}
-                                                </span>
+                                                </button>
                                             )}
                                         </div>
                                     );
@@ -349,6 +564,12 @@ export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: Medicat
                             </div>
 
                             <div className="schedule-card-actions">
+                                <button
+                                    className="schedule-action-btn action-edit"
+                                    onClick={() => startEdit(schedule)}
+                                >
+                                    <IconEdit size={14} /> {t('app.edit', '编辑')}
+                                </button>
                                 <button
                                     className="schedule-action-btn action-delete"
                                     onClick={() => handleDelete(schedule.id)}
@@ -362,22 +583,16 @@ export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: Medicat
                 <div className="nav-spacer" />
             </div>
 
-            {/* 添加按钮 (FAB) */}
-            <button
-                className="add-schedule-btn"
-                onClick={() => setShowAddForm(true)}
-            >
-                +
-            </button>
-
             {/* 添加计划弹窗 */}
             {showAddForm && (
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <div className="modal-header">
-                            <h2>{t('schedule.addSchedule')}</h2>
-                            <button className="close-btn" onClick={() => setShowAddForm(false)}><IconClose size={18} /></button>
+                            <h2>{isEditing ? t('schedule.editSchedule', '编辑服药计划') : t('schedule.addSchedule')}</h2>
+                            <button className="close-btn" onClick={() => { setShowAddForm(false); resetForm(); }}><IconClose size={18} /></button>
                         </div>
+
+
 
                         <div className="form-group">
                             <label>{t('schedule.medicationName')} *</label>
@@ -442,6 +657,28 @@ export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: Medicat
                         </div>
 
                         <div className="form-group">
+                            <label>{t('schedule.allowWindow', '确认时间窗口（±分钟）')}</label>
+                            <input
+                                type="number"
+                                className="form-input"
+                                value={formData.graceMinutes}
+                                onChange={(e) => handleInputChange('graceMinutes', e.target.value)}
+                                placeholder="20"
+                                min="0"
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label>{t('schedule.startDate', '开始日期')}</label>
+                            <input
+                                type="date"
+                                className="form-input"
+                                value={formData.startDate}
+                                onChange={(e) => handleInputChange('startDate', e.target.value)}
+                            />
+                        </div>
+
+                        <div className="form-group">
                             <label>{t('schedule.duration')}</label>
                             <input
                                 type="number"
@@ -474,6 +711,84 @@ export function MedicationSchedulePage({ onBack, onNavigateToFeedback }: Medicat
                         </div>
                     </div>
                 </div>
+            )}
+
+            {statusToggle && (
+                <div className="dose-modal-overlay" onClick={() => setStatusToggle(null)}>
+                    <div className="dose-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '340px' }}>
+                        <div className="dose-step" style={{ padding: '24px 20px' }}>
+                            <div className="dose-header" style={{ marginBottom: '16px' }}>
+                                <h3 style={{ fontSize: '18px' }}>{t('schedule.changeStatus', '修改状态')}</h3>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <button
+                                    className="status-option-btn status-taken"
+                                    onClick={() => handleStatusChange('taken')}
+                                >
+                                    <IconCheck size={16} />
+                                    <span>{t('schedule.taken')}</span>
+                                </button>
+                                <button
+                                    className="status-option-btn status-missed"
+                                    onClick={() => handleStatusChange('missed')}
+                                >
+                                    <span>{t('schedule.missed', '已错过')}</span>
+                                </button>
+                            </div>
+                            <button
+                                className="anim-close"
+                                style={{ marginTop: '16px', width: '100%' }}
+                                onClick={() => setStatusToggle(null)}
+                            >
+                                {t('app.cancel', '取消')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit scope confirmation dialog */}
+            {showScopeDialog && (
+                <div className="dose-modal-overlay" onClick={() => setShowScopeDialog(false)}>
+                    <div className="dose-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '340px' }}>
+                        <div className="dose-step" style={{ padding: '24px 20px' }}>
+                            <div className="dose-header" style={{ marginBottom: '16px' }}>
+                                <h3 style={{ fontSize: '18px' }}>{t('schedule.editScope', '应用范围')}</h3>
+                                <p className="dose-meta">{t('schedule.scopePrompt', '此修改应用于哪些日期？')}</p>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <button
+                                    className="status-option-btn status-taken"
+                                    onClick={() => handleSubmitWithScope('today')}
+                                >
+                                    <span>{t('schedule.scopeToday', '仅今天')}</span>
+                                </button>
+                                <button
+                                    className="status-option-btn status-taken"
+                                    onClick={() => handleSubmitWithScope('future')}
+                                >
+                                    <span>{t('schedule.scopeFuture', '未来全部')}</span>
+                                </button>
+                            </div>
+                            <button
+                                className="anim-close"
+                                style={{ marginTop: '16px', width: '100%' }}
+                                onClick={() => setShowScopeDialog(false)}
+                            >
+                                {t('app.cancel', '取消')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 确认服药弹窗 */}
+            {confirmingDose && (
+                <ConfirmDoseModal
+                    dose={confirmingDose}
+                    onConfirm={handleDoseConfirmed}
+                    onClose={() => setConfirmingDose(null)}
+                />
             )}
         </div>
     );

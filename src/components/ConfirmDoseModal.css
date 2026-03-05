@@ -1,0 +1,394 @@
+/**
+ * ConfirmDoseModal.css
+ * 统一的确认服用弹窗样式
+ */
+
+/* ===== Overlay ===== */
+.dose-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 24px;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* ===== Modal Container ===== */
+.dose-modal {
+    background: var(--bg-primary);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 360px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ===== Step Container ===== */
+.dose-step {
+    padding: 28px 24px;
+}
+
+/* ===== Header ===== */
+.dose-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.dose-header h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.dose-meta {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+/* ===== Step 1: Feeling ===== */
+.dose-question {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+}
+
+.feeling-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.feeling-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 16px 18px;
+    border: 1.5px solid var(--border-light);
+    border-radius: 14px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.feeling-btn:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+.feeling-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.feeling-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.feeling-good .feeling-icon {
+    background: rgba(76, 175, 80, 0.12);
+    color: #4CAF50;
+}
+
+.feeling-mild .feeling-icon {
+    background: rgba(255, 152, 0, 0.12);
+    color: #FF9800;
+}
+
+.feeling-severe .feeling-icon {
+    background: rgba(244, 67, 54, 0.12);
+    color: #F44336;
+}
+
+.feeling-label {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.dose-submitting {
+    text-align: center;
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-top: 12px;
+}
+
+/* ===== Step 2: Feedback Input ===== */
+.feedback-textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 14px;
+    border: 1.5px solid var(--border-light);
+    border-radius: 12px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 16px;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.feedback-textarea:focus {
+    border-color: var(--accent-sage);
+}
+
+.feedback-textarea::placeholder {
+    color: var(--text-muted);
+    font-family: inherit;
+}
+
+.feedback-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.feedback-skip,
+.feedback-submit {
+    flex: 1;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.feedback-skip {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1.5px solid var(--border-light);
+}
+
+.feedback-submit {
+    background: var(--accent-sage);
+    color: #fff;
+}
+
+.feedback-submit:disabled,
+.feedback-skip:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ===== Voice Input ===== */
+.voice-input-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.voice-btn {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 2px solid var(--border-light);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.voice-btn:active:not(:disabled) {
+    transform: scale(0.93);
+}
+
+.voice-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.voice-btn.listening {
+    border-color: #F44336;
+    background: rgba(244, 67, 54, 0.08);
+    color: #F44336;
+}
+
+/* Breathing pulse rings */
+.voice-pulse {
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid rgba(244, 67, 54, 0.4);
+    animation: voicePulse 1.4s ease-in-out infinite;
+    pointer-events: none;
+}
+
+.voice-btn.listening::before {
+    content: '';
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(244, 67, 54, 0.2);
+    animation: voicePulse 1.4s ease-in-out 0.3s infinite;
+    pointer-events: none;
+}
+
+@keyframes voicePulse {
+    0% {
+        transform: scale(0.85);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 0.5;
+    }
+
+    100% {
+        transform: scale(0.85);
+        opacity: 1;
+    }
+}
+
+.voice-hint {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.voice-btn.listening+.voice-pulse~.voice-hint,
+.voice-btn.listening~.voice-hint {
+    color: #F44336;
+}
+
+/* ===== Step 3: Animation ===== */
+.dose-step-animation {
+    text-align: center;
+    padding: 40px 24px 28px;
+}
+
+.anim-encourage,
+.anim-advisory {
+    animation: popIn 0.4s ease;
+}
+
+@keyframes popIn {
+    0% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    60% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.anim-checkmark,
+.anim-icon {
+    margin-bottom: 16px;
+    animation: drawCheck 0.6s ease 0.2s both;
+}
+
+@keyframes drawCheck {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.anim-encourage h3 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent-sage-deep);
+    margin: 0 0 8px;
+}
+
+.anim-encourage p {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.anim-advisory h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 8px;
+}
+
+.anim-advisory p {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.anim-close {
+    margin-top: 24px;
+    padding: 12px 32px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border-light);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.anim-close:active {
+    transform: scale(0.95);
+}

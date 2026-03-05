@@ -19,6 +19,26 @@ import type {
 const AuthContext = createContext<UseAuthReturn | null>(null);
 
 /**
+ * 将 Supabase 英文错误翻译为中文
+ */
+const translateError = (msg: string): string => {
+    const map: Record<string, string> = {
+        'User already registered': '该邮箱已被注册',
+        'Invalid login credentials': '邮箱或密码错误',
+        'Email not confirmed': '邮箱尚未验证，请查收验证邮件',
+        'Password should be at least 6 characters': '密码至少需要6个字符',
+        'Unable to validate email address: invalid format': '邮箱格式不正确',
+        'Signup requires a valid password': '请输入有效密码',
+        'Email rate limit exceeded': '请求过于频繁，请稍后再试',
+        'For security purposes, you can only request this once every 60 seconds': '出于安全考虑，请60秒后再试',
+    };
+    for (const [en, zh] of Object.entries(map)) {
+        if (msg.toLowerCase().includes(en.toLowerCase())) return zh;
+    }
+    return msg;
+};
+
+/**
  * 将Supabase用户转换为应用用户格式
  */
 const transformUser = (supabaseUser: any): User | null => {
@@ -52,11 +72,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
      * 初始化：检查现有session
      */
     useEffect(() => {
+        let retryCount = 0;
+        const MAX_RETRIES = 2;
+
         const initAuth = async () => {
             // 检查Supabase是否配置
             if (!isSupabaseConfigured()) {
                 console.warn('[AuthProvider] Supabase未配置，使用模拟模式');
-                // 模拟模式下，默认不登录，等待用户操作
                 setState(prev => ({ ...prev, isLoading: false }));
                 return;
             }
@@ -66,8 +88,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const { data: { session }, error } = await supabase.auth.getSession();
 
                 if (error) {
-                    console.error('[AuthProvider] 获取session失败:', error);
-                    setState(prev => ({ ...prev, isLoading: false, error: error.message }));
+                    // 网络不可达时优雅降级，不无限重试
+                    const isNetworkError =
+                        error.name === 'AuthRetryableFetchError' ||
+                        ('status' in error && (error as any).status === 0);
+
+                    if (isNetworkError) {
+                        console.warn(`[AuthProvider] 网络不可达 (${retryCount + 1}/${MAX_RETRIES + 1})，将离线启动`);
+                        if (retryCount < MAX_RETRIES) {
+                            retryCount++;
+                            // 2秒后重试
+                            setTimeout(initAuth, 2000);
+                            return;
+                        }
+                        // 超过重试次数，离线模式启动
+                        setState(prev => ({ ...prev, isLoading: false, error: null }));
+                        return;
+                    }
+
+                    console.error('[AuthProvider] 获取session失败:', error.message || error);
+                    setState(prev => ({ ...prev, isLoading: false, error: translateError(error.message) }));
                     return;
                 }
 
@@ -82,12 +122,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 } else {
                     setState(prev => ({ ...prev, isLoading: false }));
                 }
-            } catch (err) {
-                console.error('[AuthProvider] 初始化失败:', err);
+            } catch (err: any) {
+                const isNetworkError =
+                    err?.name === 'AuthRetryableFetchError' ||
+                    err?.status === 0 ||
+                    err?.message?.includes('fetch');
+
+                if (isNetworkError && retryCount < MAX_RETRIES) {
+                    console.warn(`[AuthProvider] 网络错误，${retryCount + 1}/${MAX_RETRIES} 次重试...`);
+                    retryCount++;
+                    setTimeout(initAuth, 2000);
+                    return;
+                }
+
+                console.warn('[AuthProvider] 初始化失败，离线启动:', err?.message || '网络不可达');
                 setState(prev => ({
                     ...prev,
                     isLoading: false,
-                    error: '认证初始化失败'
+                    error: null, // 不显示错误，用户可以在有网时重试登录
                 }));
             }
         };
@@ -162,7 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 });
 
                 if (error) {
-                    setState(prev => ({ ...prev, isLoading: false, error: error.message }));
+                    setState(prev => ({ ...prev, isLoading: false, error: translateError(error.message) }));
                     return false;
                 }
 
@@ -179,7 +231,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 });
 
                 if (error) {
-                    setState(prev => ({ ...prev, isLoading: false, error: error.message }));
+                    setState(prev => ({ ...prev, isLoading: false, error: translateError(error.message) }));
                     return false;
                 }
 
@@ -245,7 +297,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 });
 
                 if (error) {
-                    setState(prev => ({ ...prev, isLoading: false, error: error.message }));
+                    setState(prev => ({ ...prev, isLoading: false, error: translateError(error.message) }));
                     return false;
                 }
 

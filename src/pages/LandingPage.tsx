@@ -8,13 +8,15 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMedicationSchedule, type MedicationSchedule, type MedicationReminder } from '../hooks/medication/useMedicationSchedule';
-import { IconPill, IconSun, IconCheck, IconCamera, IconGuide } from '../components/Icons';
+import { IconPill, IconSun, IconCheck, IconCamera, IconGuide, IconPlus } from '../components/Icons';
+import ConfirmDoseModal, { type DoseInfo } from '../components/ConfirmDoseModal';
 import './LandingPage.css';
 
 interface LandingPageProps {
     userName?: string;
     onNavigateToUpload: () => void;
     onNavigateToSchedules: () => void;
+    onNavigateToAddSchedule: () => void;
     onNavigateToAgentAnalysis: () => void;
     onLogout: () => void;
     onNavigateToFeedback?: (medicationName: string, scheduleId: string) => void;
@@ -29,17 +31,21 @@ interface FlatReminder {
     dosage: string;
     taken: boolean;
     missed: boolean;
+    instructions?: string;
 }
 
 /**
- * 判断某个时间是否已过期超过2小时
+ * 判断某个提醒是否已错过（包含自定义允许窗口）
  */
-const isMissed = (timeStr: string): boolean => {
+const isMissed = (reminder: MedicationReminder, schedule: MedicationSchedule): boolean => {
+    if (reminder.taken) return false;
+    if (reminder.missed) return true;
+    const windowMinutes = schedule.allowWindowMinutes ?? schedule.graceMinutes ?? 0;
+    const [hours, minutes] = reminder.time.split(':').map(Number);
+    const scheduledMinutes = hours * 60 + minutes;
     const now = new Date();
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const scheduled = new Date();
-    scheduled.setHours(hours, minutes, 0, 0);
-    return (now.getTime() - scheduled.getTime()) / (1000 * 60 * 60) > 2;
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    return nowMinutes > scheduledMinutes + windowMinutes;
 };
 
 /**
@@ -51,6 +57,17 @@ const getGreeting = (t: (key: string, fallback: string) => string): string => {
     if (hour < 12) return t('landing.greeting.morning', '早上好');
     if (hour < 18) return t('landing.greeting.afternoon', '下午好');
     return t('landing.greeting.evening', '晚上好');
+};
+
+/**
+ * 根据温度给出穿衣建议
+ */
+const getClothingAdvice = (temp: number, t: (key: string, fallback: string) => string): string => {
+    if (temp <= 5) return t('landing.clothing.heavy', '注意保暖，穿厚外套');
+    if (temp <= 10) return t('landing.clothing.warm', '天气较冷，穿毛衣外套');
+    if (temp <= 18) return t('landing.clothing.light', '适合穿薄外套或长袖');
+    if (temp <= 25) return t('landing.clothing.tshirt', '温度舒适，穿短袖即可');
+    return t('landing.clothing.hot', '天气炎热，注意防晒补水');
 };
 
 /**
@@ -76,14 +93,12 @@ export default function LandingPage({
     userName,
     onNavigateToUpload,
     onNavigateToSchedules,
+    onNavigateToAddSchedule,
     onNavigateToAgentAnalysis,
-    onNavigateToFeedback,
 }: LandingPageProps) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { schedules, isLoading, markAsTaken, getTodaySchedules } = useMedicationSchedule();
-    const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
-    const [confirmingDose, setConfirmingDose] = useState<FlatReminder | null>(null);
-    const [feedbackText, setFeedbackText] = useState('');
+    const [confirmingDose, setConfirmingDose] = useState<DoseInfo | null>(null);
     const [justConfirmed, setJustConfirmed] = useState(false);
 
     // 今日所有提醒展开
@@ -99,7 +114,8 @@ export default function LandingPage({
                     time: reminder.time,
                     dosage: reminder.dosage,
                     taken: reminder.taken,
-                    missed: !reminder.taken && isMissed(reminder.time),
+                    missed: isMissed(reminder, schedule),
+                    instructions: schedule.instructions || undefined,
                 });
             });
         });
@@ -122,38 +138,35 @@ export default function LandingPage({
         return () => clearInterval(timer);
     }, []);
 
-    const dateStr = currentTime.toLocaleDateString('zh-CN', {
-        year: 'numeric', month: 'long', day: 'numeric',
+    const dateStr = new Intl.DateTimeFormat(i18n.language || 'en', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
         weekday: 'long',
-    });
+    }).format(currentTime);
 
     // 确认服药流程
     const handleFABClick = useCallback(() => {
         if (nextDose) {
-            setConfirmingDose(nextDose);
-            setShowFeedbackSheet(true);
-            setFeedbackText('');
+            setConfirmingDose({
+                scheduleId: nextDose.scheduleId,
+                reminderId: nextDose.reminderId,
+                medicationName: nextDose.name,
+                dosage: nextDose.dosage,
+                time: nextDose.time,
+            });
         }
     }, [nextDose]);
 
-    const handleConfirmDose = useCallback(async () => {
-        if (!confirmingDose) return;
-        await markAsTaken(confirmingDose.scheduleId, confirmingDose.reminderId);
-        setShowFeedbackSheet(false);
+    const handleDoseConfirmed = useCallback(async (scheduleId: string, reminderId: string) => {
+        await markAsTaken(scheduleId, reminderId);
         setJustConfirmed(true);
         setTimeout(() => setJustConfirmed(false), 2000);
+    }, [markAsTaken]);
 
-        // 如果有反馈内容，可以导航到完整反馈页
-        if (feedbackText.trim() && onNavigateToFeedback) {
-            onNavigateToFeedback(confirmingDose.name, confirmingDose.scheduleId);
-        }
-    }, [confirmingDose, feedbackText, markAsTaken, onNavigateToFeedback]);
-
-    const cancelFeedback = () => {
-        setShowFeedbackSheet(false);
+    const handleModalClose = useCallback(() => {
         setConfirmingDose(null);
-        setFeedbackText('');
-    };
+    }, []);
 
     if (isLoading) {
         return (
@@ -164,20 +177,25 @@ export default function LandingPage({
         );
     }
 
+    const currentTemp = 23; // TODO: 接入真实天气 API
+
     return (
         <div className="landing-page">
             {/* 顶部 Header */}
             <header className="landing-header">
                 <div className="greeting-section">
                     <h1 className="greeting-text">
-                        {getGreeting(t)}{userName ? `，${userName}` : ''}
+                        {getGreeting(t)}{userName ? `${i18n.language.startsWith('zh') ? '，' : ', '}${userName}` : ''}
                     </h1>
                     <p className="date-text">{dateStr}</p>
                 </div>
-                {/* 天气占位 */}
+                {/* 天气 + 穿衣建议 */}
                 <div className="weather-badge">
-                    <span className="weather-icon"><IconSun size={18} /></span>
-                    <span className="weather-temp">23°</span>
+                    <div className="weather-main">
+                        <span className="weather-icon"><IconSun size={18} /></span>
+                        <span className="weather-temp">{currentTemp}°</span>
+                    </div>
+                    <span className="weather-advice">{getClothingAdvice(currentTemp, t)}</span>
                 </div>
             </header>
 
@@ -191,9 +209,15 @@ export default function LandingPage({
                             </p>
                             <p className="hero-med-name">{nextDose.name}</p>
                             <p className="hero-time">
-                                <span className="time-icon">⏱</span>
                                 {nextDose.time} · {nextDose.dosage}
                             </p>
+
+                            {/* 用药提示 */}
+                            {nextDose.instructions && (
+                                <p className="hero-instructions">
+                                    {nextDose.instructions}
+                                </p>
+                            )}
 
                             {/* 超大 FAB */}
                             <button
@@ -238,115 +262,97 @@ export default function LandingPage({
                 </div>
             </section>
 
-            {/* 用药概览卡片 — 点击跳转 */}
-            {stats.total > 0 && (
+            {/* 主体区域 — flex 填充 */}
+            <div className="landing-body">
+                {/* 用药概览卡片 — 始终显示，点击跳转 */}
                 <section
                     className="summary-card"
-                    onClick={onNavigateToSchedules}
+                    onClick={stats.total > 0 ? onNavigateToSchedules : onNavigateToAddSchedule}
                     role="button"
                     tabIndex={0}
                 >
-                    <div className="summary-header">
-                        <span className="summary-title">
-                            {t('landing.todayPlan', '今日用药')}
-                        </span>
-                        <span className="summary-arrow">›</span>
-                    </div>
-                    <div className="summary-stats">
-                        <div className="summary-stat">
-                            <span className="stat-num completed">{stats.taken}</span>
-                            <span className="stat-lbl">{t('landing.taken', '已服用')}</span>
-                        </div>
-                        <div className="summary-divider" />
-                        <div className="summary-stat">
-                            <span className="stat-num pending">{stats.pending}</span>
-                            <span className="stat-lbl">{t('landing.pending', '待服用')}</span>
-                        </div>
-                        {stats.missed > 0 && (
-                            <>
+                    {stats.total > 0 ? (
+                        <>
+                            <div className="summary-header">
+                                <span className="summary-title">
+                                    {t('landing.todayPlan', '今日用药')}
+                                </span>
+                                <span className="summary-arrow">›</span>
+                            </div>
+                            <div className="summary-stats">
+                                <div className="summary-stat">
+                                    <span className="stat-num completed">{stats.taken}</span>
+                                    <span className="stat-lbl">{t('landing.taken', '已服用')}</span>
+                                </div>
                                 <div className="summary-divider" />
                                 <div className="summary-stat">
-                                    <span className="stat-num missed">{stats.missed}</span>
-                                    <span className="stat-lbl">{t('landing.missed', '已错过')}</span>
+                                    <span className="stat-num pending">{stats.pending}</span>
+                                    <span className="stat-lbl">{t('landing.pending', '待服用')}</span>
                                 </div>
-                            </>
-                        )}
-                    </div>
-                    <div className="summary-progress">
-                        <div
-                            className="progress-fill"
-                            style={{ width: `${stats.total > 0 ? (stats.taken / stats.total) * 100 : 0}%` }}
-                        />
-                    </div>
+                                {stats.missed > 0 && (
+                                    <>
+                                        <div className="summary-divider" />
+                                        <div className="summary-stat">
+                                            <span className="stat-num missed">{stats.missed}</span>
+                                            <span className="stat-lbl">{t('landing.missed', '已错过')}</span>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            <div className="summary-progress">
+                                <div
+                                    className="progress-fill"
+                                    style={{ width: `${stats.total > 0 ? (stats.taken / stats.total) * 100 : 0}%` }}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <div className="summary-empty">
+                            <div className="summary-empty-icon">
+                                <IconPlus size={28} />
+                            </div>
+                            <div className="summary-empty-content">
+                                <span className="summary-title">
+                                    {t('landing.todayPlan', '今日用药')}
+                                </span>
+                                <span className="summary-empty-cta">
+                                    {t('landing.addPlanCta', '点击添加用药计划')}
+                                </span>
+                            </div>
+                            <span className="summary-arrow">›</span>
+                        </div>
+                    )}
                 </section>
-            )}
 
-            {/* 快捷操作 — 仅保留 2 个 */}
-            <section className="quick-actions">
-                <button className="quick-card" onClick={onNavigateToUpload}>
-                    <span className="quick-icon"><IconCamera size={24} /></span>
-                    <div className="quick-info">
-                        <span className="quick-label">{t('landing.scanRecord', '扫描病例')}</span>
-                        <span className="quick-desc">{t('landing.scanDesc', '拍照识别药物信息')}</span>
-                    </div>
-                </button>
-                <button className="quick-card" onClick={onNavigateToAgentAnalysis}>
-                    <span className="quick-icon"><IconGuide size={24} /></span>
-                    <div className="quick-info">
-                        <span className="quick-label">{t('landing.medGuide', '用药指南')}</span>
-                        <span className="quick-desc">{t('landing.guideDesc', 'AI 智能药物分析')}</span>
-                    </div>
-                </button>
-            </section>
+                {/* 快捷操作 — 仅保留 2 个 */}
+                <section className="quick-actions">
+                    <button className="quick-card" onClick={onNavigateToUpload}>
+                        <span className="quick-icon"><IconCamera size={24} /></span>
+                        <div className="quick-info">
+                            <span className="quick-label">{t('landing.scanRecord', '扫描病例')}</span>
+                            <span className="quick-desc">{t('landing.scanDesc', '拍照识别药物信息')}</span>
+                        </div>
+                    </button>
+                    <button className="quick-card" onClick={onNavigateToAgentAnalysis}>
+                        <span className="quick-icon"><IconGuide size={24} /></span>
+                        <div className="quick-info">
+                            <span className="quick-label">{t('landing.medGuide', '用药指南')}</span>
+                            <span className="quick-desc">{t('landing.guideDesc', 'AI 智能药物分析')}</span>
+                        </div>
+                    </button>
+                </section>
+            </div>
 
             {/* 底部留白 */}
             <div className="nav-spacer" />
 
-            {/* 反馈浮层 */}
-            {showFeedbackSheet && confirmingDose && (
-                <div className="feedback-overlay" onClick={cancelFeedback}>
-                    <div className="feedback-sheet" onClick={e => e.stopPropagation()}>
-                        <div className="sheet-header">
-                            <h3>{t('landing.feedbackTitle', '服药反馈')}</h3>
-                            <p className="sheet-med">
-                                {confirmingDose.name} · {confirmingDose.time}
-                            </p>
-                        </div>
-
-                        <div className="sheet-moods">
-                            {[
-                                { label: t('feedback.good', '正常') },
-                                { label: t('feedback.dizzy', '头晕') },
-                                { label: t('feedback.nausea', '恶心') },
-                            ].map(mood => (
-                                <button
-                                    key={mood.label}
-                                    className={`mood-chip ${feedbackText === mood.label ? 'active' : ''}`}
-                                    onClick={() => setFeedbackText(mood.label)}
-                                >
-                                    <span>{mood.label}</span>
-                                </button>
-                            ))}
-                        </div>
-
-                        <textarea
-                            className="sheet-textarea"
-                            placeholder={t('landing.feedbackPlaceholder', '还有其他感受吗？（可选）')}
-                            value={feedbackText.startsWith('正常') || feedbackText.startsWith('头晕') || feedbackText.startsWith('恶心') ? '' : feedbackText}
-                            onChange={e => setFeedbackText(e.target.value)}
-                            rows={3}
-                        />
-
-                        <div className="sheet-actions">
-                            <button className="sheet-cancel" onClick={cancelFeedback}>
-                                {t('common.cancel', '取消')}
-                            </button>
-                            <button className="sheet-confirm" onClick={handleConfirmDose}>
-                                {t('landing.confirmTake', '确认服用')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            {/* 确认服药弹窗 */}
+            {confirmingDose && (
+                <ConfirmDoseModal
+                    dose={confirmingDose}
+                    onConfirm={handleDoseConfirmed}
+                    onClose={handleModalClose}
+                />
             )}
         </div>
     );

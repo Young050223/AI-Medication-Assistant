@@ -33,7 +33,10 @@ export default function AgentChatPage(_props: AgentChatPageProps) {
 
     const presetQuestions = schedules.length > 0
         ? [
-            t('agent.preset.interaction', `${schedules[0]?.medicationName || '药物'}有什么禁忌吗？`),
+            t('agent.preset.interaction', {
+                drug: schedules[0]?.medicationName || t('schedule.medicationName', '药物'),
+                defaultValue: `${schedules[0]?.medicationName || '药物'}有什么禁忌吗？`,
+            }),
             t('agent.preset.sideEffects', '这些药物有什么副作用？'),
             t('agent.preset.foodInteraction', '服药期间有什么饮食注意事项？'),
         ]

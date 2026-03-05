@@ -7,7 +7,7 @@
     min-height: 100vh;
     background: var(--bg-primary);
     padding: 0 20px;
-    padding-top: env(safe-area-inset-top, 16px);
+    padding-top: calc(16px + env(safe-area-inset-top, 20px));
 }
 
 .settings-header {
@@ -148,6 +148,10 @@
     font-size: 13px;
     font-weight: 700;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
     transition: all var(--transition-fast);
 }
 
@@ -157,45 +161,53 @@
     border-color: var(--accent-sage);
 }
 
-/* ===== Theme Toggle ===== */
-.theme-toggle {
-    background: transparent;
-    border: none;
+/* ===== Theme Selector ===== */
+.theme-setting {
+    flex-wrap: wrap;
+}
+
+.theme-options {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 10px;
+    width: 100%;
+}
+
+.theme-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
     padding: 0;
+    background: none;
+    border: none;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
 }
 
-.toggle-track {
-    display: block;
-    width: 52px;
-    height: 30px;
-    border-radius: 15px;
-    background: var(--bg-input);
-    border: 1.5px solid var(--border-medium);
-    position: relative;
-    transition: background var(--transition-base), border-color var(--transition-base);
+.theme-preview {
+    width: 72px;
+    height: 54px;
+    border-radius: 8px;
+    border: 2.5px solid transparent;
+    object-fit: cover;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.toggle-track.dark {
-    background: var(--accent-sage);
+.theme-option.active .theme-preview {
     border-color: var(--accent-sage);
+    box-shadow: 0 0 0 2px var(--accent-sage-bg);
 }
 
-.toggle-thumb {
-    display: block;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: var(--bg-secondary);
-    box-shadow: var(--shadow-sm);
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    transition: transform var(--transition-spring);
+.theme-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: color var(--transition-fast);
 }
 
-.toggle-track.dark .toggle-thumb {
-    transform: translateX(22px);
+.theme-option.active .theme-label {
+    color: var(--accent-sage-deep);
 }
 
 /* ===== Logout ===== */
