@@ -106,6 +106,36 @@ export interface CheckRisksResponse {
     error?: string;
 }
 
+export interface ConversationListItem {
+    id: string;
+    title: string;
+    updatedAt: string;
+    createdAt: string;
+    lastMessage?: string;
+    lastMessageRole?: string;
+}
+
+export interface ConversationMessage {
+    id: string;
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    createdAt: string;
+}
+
+export interface VectorizeDocumentRequest {
+    userId: string;
+    sourceType: 'chat_message' | 'medication_feedback' | 'user_query' | 'health_profile' | 'medication_schedule';
+    sourceId?: string;
+    content: string;
+    metadata?: Record<string, unknown>;
+}
+
+export interface VectorizeDocumentResponse {
+    success: boolean;
+    documentId?: string;
+    error?: string;
+}
+
 // =============================================
 // API 调用函数
 // =============================================
@@ -141,6 +171,15 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
         'apikey': anonKey,
         'Authorization': `Bearer ${anonKey}`,
     };
+}
+
+async function getCurrentUserId(): Promise<string | null> {
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        return user?.id || null;
+    } catch {
+        return null;
+    }
 }
 
 /**
@@ -310,9 +349,16 @@ export async function searchSimilarQueries(
             return { success: false, error: embeddingResult.error };
         }
 
-        // 2. 调用Supabase RPC函数搜索
-        const { data, error } = await supabase.rpc('match_user_queries', {
+        const userId = await getCurrentUserId();
+        if (!userId) {
+            return { success: false, error: '用户未登录' };
+        }
+
+        // 2. 调用统一 RAG RPC函数搜索
+        const { data, error } = await supabase.rpc('match_rag_documents', {
             query_embedding: embeddingResult.embedding,
+            target_user_id: userId,
+            source_types: ['user_query'],
             match_threshold: 0.7,
             match_count: limit,
         });
@@ -323,9 +369,9 @@ export async function searchSimilarQueries(
 
         return {
             success: true,
-            results: data?.map((item: { query_text: string; query_type: string; similarity: number }) => ({
-                queryText: item.query_text,
-                queryType: item.query_type,
+            results: data?.map((item: { content: string; metadata?: Record<string, unknown>; similarity: number }) => ({
+                queryText: item.content,
+                queryType: String(item.metadata?.query_type || 'drug_search'),
                 similarity: item.similarity,
             })) || [],
         };
@@ -334,6 +380,171 @@ export async function searchSimilarQueries(
         return {
             success: false,
             error: error instanceof Error ? error.message : '搜索失败',
+        };
+    }
+}
+
+/**
+ * 通用文档向量化
+ */
+export async function vectorizeDocument(
+    request: VectorizeDocumentRequest
+): Promise<VectorizeDocumentResponse> {
+    try {
+        const url = getEdgeFunctionUrl('vectorize-document');
+        const headers = await getAuthHeaders();
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(request),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            return {
+                success: false,
+                error: data.error || `请求失败: ${response.status}`,
+            };
+        }
+
+        return data as VectorizeDocumentResponse;
+    } catch (error) {
+        console.error('[agentApi] vectorizeDocument error:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : '网络请求失败',
+        };
+    }
+}
+
+/**
+ * 获取对话列表
+ */
+export async function fetchConversationList(
+    userId: string,
+    page: number = 1,
+    pageSize: number = 20
+): Promise<{ success: boolean; conversations: ConversationListItem[]; total: number; page: number; pageSize: number; error?: string }> {
+    try {
+        const url = getEdgeFunctionUrl('chat-history');
+        const headers = await getAuthHeaders();
+        const response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                action: 'list',
+                userId,
+                page,
+                pageSize,
+            }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            return {
+                success: false,
+                conversations: [],
+                total: 0,
+                page,
+                pageSize,
+                error: data.error || `请求失败: ${response.status}`,
+            };
+        }
+
+        return {
+            success: true,
+            conversations: data.conversations || [],
+            total: data.total || 0,
+            page: data.page || page,
+            pageSize: data.pageSize || pageSize,
+        };
+    } catch (error) {
+        console.error('[agentApi] fetchConversationList error:', error);
+        return {
+            success: false,
+            conversations: [],
+            total: 0,
+            page,
+            pageSize,
+            error: error instanceof Error ? error.message : '网络请求失败',
+        };
+    }
+}
+
+/**
+ * 获取单个对话的消息列表
+ */
+export async function fetchConversationMessages(
+    conversationId: string
+): Promise<{ success: boolean; messages: ConversationMessage[]; error?: string }> {
+    try {
+        const url = getEdgeFunctionUrl('chat-history');
+        const headers = await getAuthHeaders();
+        const response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                action: 'messages',
+                conversationId,
+            }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            return {
+                success: false,
+                messages: [],
+                error: data.error || `请求失败: ${response.status}`,
+            };
+        }
+
+        return {
+            success: true,
+            messages: data.messages || [],
+        };
+    } catch (error) {
+        console.error('[agentApi] fetchConversationMessages error:', error);
+        return {
+            success: false,
+            messages: [],
+            error: error instanceof Error ? error.message : '网络请求失败',
+        };
+    }
+}
+
+/**
+ * 删除对话
+ */
+export async function deleteConversation(
+    conversationId: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const url = getEdgeFunctionUrl('chat-history');
+        const headers = await getAuthHeaders();
+        const response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                action: 'delete',
+                conversationId,
+            }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            return {
+                success: false,
+                error: data.error || `请求失败: ${response.status}`,
+            };
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error('[agentApi] deleteConversation error:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : '网络请求失败',
         };
     }
 }
@@ -406,5 +617,9 @@ export default {
     checkRisks,
     generateEmbedding,
     searchSimilarQueries,
+    vectorizeDocument,
+    fetchConversationList,
+    fetchConversationMessages,
+    deleteConversation,
     chatWithAgent,
 };

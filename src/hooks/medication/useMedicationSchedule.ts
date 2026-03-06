@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../user/useAuth';
+import { formatLocalDateKey, normalizeDateKey } from '../../utils/dateKey';
 
 // ===================== 类型定义 =====================
 
@@ -46,6 +47,11 @@ export interface ScheduleOverride {
     frequency?: string;
     instructions?: string;
     reminderTimes?: string[];
+    reminders?: Array<{
+        id: string;
+        time: string;
+        dosage: string;
+    }>;
     allowWindowMinutes?: number;
 }
 
@@ -62,6 +68,7 @@ export type TakenRecords = Record<string, Record<string, TakenRecord>>;
 export interface UseMedicationScheduleReturn {
     schedules: MedicationSchedule[];
     takenRecords: TakenRecords;
+    anchorDate: string | null;
     isLoading: boolean;
     isSaving: boolean;
     error: string | null;
@@ -76,12 +83,14 @@ export interface UseMedicationScheduleReturn {
     setDateOverride: (scheduleId: string, date: string, override: ScheduleOverride) => Promise<void>;
     getSchedulesForDate: (date: string) => MedicationSchedule[];
     getTodaySchedules: () => MedicationSchedule[];
+    setAnchorDate: (date: string) => Promise<void>;
 }
 
 // ===================== Constants =====================
 
 const STORAGE_KEY_PREFIX = 'medication_schedules';
 const TAKEN_KEY_PREFIX = 'medication_taken';
+const ANCHOR_KEY_PREFIX = 'medication_anchor_date';
 const FREQUENCY_KEYS = ['onceDaily', 'twiceDaily', 'thriceDaily', 'fourTimesDaily', 'asNeeded'] as const;
 const FREQUENCY_TEXT_TO_KEY: Record<string, string> = {
     '每日1次': 'onceDaily',
@@ -105,11 +114,70 @@ const normalizeFrequency = (value: string): string => {
 };
 
 function todayKey(): string {
-    return new Date().toISOString().split('T')[0];
+    return formatLocalDateKey(new Date());
 }
 
 const buildReminderIdForDate = (scheduleId: string, date: string, time: string, index: number): string =>
     `${scheduleId}-${date}-${time}-${index}`;
+
+const parseReminderTimeToMinutes = (time: string): number | null => {
+    const parts = time.split(':').map(Number);
+    if (parts.length !== 2 || Number.isNaN(parts[0]) || Number.isNaN(parts[1])) {
+        return null;
+    }
+    return parts[0] * 60 + parts[1];
+};
+
+const getMinimumDoseIntervalMinutes = (schedule: MedicationSchedule): number => {
+    const times = schedule.reminders
+        .map(reminder => parseReminderTimeToMinutes(reminder.time))
+        .filter((minutes): minutes is number => minutes !== null)
+        .sort((a, b) => a - b);
+
+    if (times.length <= 1) {
+        return 24 * 60;
+    }
+
+    const gaps = times.map((current, index) => {
+        const next = times[(index + 1) % times.length];
+        if (index === times.length - 1) {
+            return (24 * 60 - current) + next;
+        }
+        return next - current;
+    }).filter(gap => gap > 0);
+
+    if (gaps.length === 0) {
+        return 24 * 60;
+    }
+
+    return Math.min(...gaps);
+};
+
+const getLatestTakenTimestamp = (records: TakenRecords, reminderId: string): number | null => {
+    let latest: number | null = null;
+    Object.values(records).forEach(dateRecords => {
+        const record = dateRecords[reminderId];
+        if (!record?.taken || !record.takenAt) return;
+        const ts = new Date(record.takenAt).getTime();
+        if (Number.isNaN(ts)) return;
+        if (latest === null || ts > latest) {
+            latest = ts;
+        }
+    });
+    return latest;
+};
+
+const deriveAnchorDate = (items: MedicationSchedule[]): string | null => {
+    const candidateDates = items
+        .map(schedule => normalizeDateKey(schedule.startDate))
+        .filter((date): date is string => date !== null);
+
+    if (candidateDates.length === 0) {
+        return null;
+    }
+
+    return candidateDates.sort()[0];
+};
 
 // ===================== Hook =====================
 
@@ -129,12 +197,34 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         () => userId ? `${TAKEN_KEY_PREFIX}_${userId}` : null,
         [userId]
     );
+    const anchorKey = useMemo(
+        () => userId ? `${ANCHOR_KEY_PREFIX}_${userId}` : null,
+        [userId]
+    );
 
     const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
     const [takenRecords, setTakenRecords] = useState<TakenRecords>({});
+    const [anchorDate, setAnchorDateState] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const saveAnchorDate = useCallback((date: string | null) => {
+        if (!anchorKey) return;
+        if (!date) {
+            localStorage.removeItem(anchorKey);
+            setAnchorDateState(null);
+            return;
+        }
+        localStorage.setItem(anchorKey, date);
+        setAnchorDateState(date);
+    }, [anchorKey]);
+
+    const setAnchorDate = useCallback(async (date: string) => {
+        const normalized = normalizeDateKey(date);
+        if (!normalized) return;
+        saveAnchorDate(normalized);
+    }, [saveAnchorDate]);
 
     const getReminderRecord = useCallback((reminderId: string, date: string): TakenRecord | undefined => {
         return takenRecords[date]?.[reminderId];
@@ -142,19 +232,25 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
 
     const buildScheduleForDate = useCallback((schedule: MedicationSchedule, date: string): MedicationSchedule => {
         const override = schedule.dateOverrides?.[date];
-        const reminderTimes = override?.reminderTimes ?? schedule.reminders.map(r => r.time);
+        console.log('[buildScheduleForDate] date=', date, 'hasOverride=', !!override, 'overrideKeys=', override ? Object.keys(override) : 'none', 'scheduleName=', schedule.medicationName, 'overrideName=', override?.medicationName);
+        const overrideReminders = override?.reminders;
+        const reminderTimes = overrideReminders
+            ? overrideReminders.map(reminder => reminder.time)
+            : (override?.reminderTimes ?? schedule.reminders.map(r => r.time));
         const allowWindowMinutes = override?.allowWindowMinutes ?? schedule.allowWindowMinutes ?? schedule.graceMinutes ?? 0;
 
         const reminders = reminderTimes.map((time, index) => {
             const baseReminder = schedule.reminders[index];
-            const reminderId = override
-                ? buildReminderIdForDate(schedule.id, date, time, index)
-                : (baseReminder?.id || buildReminderIdForDate(schedule.id, date, time, index));
+            const overrideReminder = overrideReminders?.[index];
+            const reminderId = overrideReminder?.id
+                || (override
+                    ? buildReminderIdForDate(schedule.id, date, time, index)
+                    : (baseReminder?.id || buildReminderIdForDate(schedule.id, date, time, index)));
             const record = getReminderRecord(reminderId, date);
             return {
                 id: reminderId,
                 time,
-                dosage: override?.medicationDosage ?? baseReminder?.dosage ?? schedule.medicationDosage,
+                dosage: overrideReminder?.dosage ?? override?.medicationDosage ?? baseReminder?.dosage ?? schedule.medicationDosage,
                 taken: !!record?.taken,
                 missed: !!record?.missed,
                 takenAt: record?.takenAt,
@@ -175,9 +271,10 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
     // ---- Load ----
 
     const loadSchedules = useCallback(async () => {
-        if (!storageKey || !takenKey) {
+        if (!storageKey || !takenKey || !anchorKey) {
             setSchedules([]);
             setTakenRecords({});
+            setAnchorDateState(null);
             setIsLoading(false);
             return;
         }
@@ -205,14 +302,16 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
 
                 for (const schedule of migrated) {
                     for (const reminder of schedule.reminders) {
-                        if (reminder.taken && reminder.takenAt) {
+                        if (reminder.taken) {
                             // Determine which date this was taken on
-                            const takenDate = reminder.takenAt.split('T')[0];
+                            const takenDate = reminder.takenAt
+                                ? (normalizeDateKey(reminder.takenAt) || todayKey())
+                                : todayKey(); // fallback if no takenAt
                             if (!taken[takenDate]) taken[takenDate] = {};
                             if (!taken[takenDate][reminder.id]) {
                                 taken[takenDate][reminder.id] = {
                                     taken: true,
-                                    takenAt: reminder.takenAt,
+                                    takenAt: reminder.takenAt || new Date().toISOString(),
                                 };
                                 migrationNeeded = true;
                             }
@@ -229,11 +328,17 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
                 }
 
                 setTakenRecords(taken);
+                const storedAnchor = normalizeDateKey(localStorage.getItem(anchorKey));
+                const derivedAnchor = deriveAnchorDate(migrated) || todayKey();
+                const resolvedAnchor = storedAnchor || derivedAnchor;
+                saveAnchorDate(resolvedAnchor);
             } else {
                 setSchedules([]);
                 // Still load taken records
                 const storedTaken = localStorage.getItem(takenKey);
                 setTakenRecords(storedTaken ? JSON.parse(storedTaken) : {});
+                const storedAnchor = normalizeDateKey(localStorage.getItem(anchorKey));
+                saveAnchorDate(storedAnchor || todayKey());
             }
         } catch (err) {
             console.error('[useMedicationSchedule] Load error:', err);
@@ -241,7 +346,7 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         } finally {
             setIsLoading(false);
         }
-    }, [storageKey, takenKey]);
+    }, [storageKey, takenKey, anchorKey, saveAnchorDate]);
 
     // ---- Save helpers ----
 
@@ -262,8 +367,10 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
     const addSchedule = useCallback(async (
         schedule: Omit<MedicationSchedule, 'id' | 'createdAt' | 'updatedAt'>
     ) => {
+        const normalizedStartDate = normalizeDateKey(schedule.startDate) || todayKey();
         const newSchedule: MedicationSchedule = {
             ...schedule,
+            startDate: normalizedStartDate,
             frequency: normalizeFrequency(schedule.frequency),
             id: crypto.randomUUID(),
             createdAt: new Date().toISOString(),
@@ -271,19 +378,32 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         };
 
         saveSchedules([...schedules, newSchedule]);
-    }, [schedules, saveSchedules]);
+        if (!anchorDate) {
+            saveAnchorDate(normalizedStartDate);
+        }
+    }, [schedules, saveSchedules, anchorDate, saveAnchorDate]);
 
     const updateSchedule = useCallback(async (id: string, updates: Partial<MedicationSchedule>) => {
-        const normalizedUpdates = updates.frequency
-            ? { ...updates, frequency: normalizeFrequency(updates.frequency) }
-            : updates;
+        console.log('[updateSchedule] id=', id, 'updates=', JSON.stringify(updates).substring(0, 500));
+        const normalizedUpdates: Partial<MedicationSchedule> = {
+            ...updates,
+            ...(updates.frequency ? { frequency: normalizeFrequency(updates.frequency) } : {}),
+            ...(updates.startDate ? { startDate: normalizeDateKey(updates.startDate) || updates.startDate } : {}),
+            ...(updates.endDate ? { endDate: normalizeDateKey(updates.endDate) || updates.endDate } : {}),
+        };
         const updated = schedules.map(s =>
             s.id === id
                 ? { ...s, ...normalizedUpdates, updatedAt: new Date().toISOString() }
                 : s
         );
+        const target = updated.find(s => s.id === id);
+        console.log('[updateSchedule] AFTER merge schedule=', JSON.stringify(target).substring(0, 500));
+        console.log('[updateSchedule] dateOverrides keys=', target?.dateOverrides ? Object.keys(target.dateOverrides) : 'none');
         saveSchedules(updated);
-    }, [schedules, saveSchedules]);
+        if (normalizedUpdates.startDate) {
+            saveAnchorDate(normalizedUpdates.startDate);
+        }
+    }, [schedules, saveSchedules, saveAnchorDate]);
 
     const deleteSchedule = useCallback(async (id: string) => {
         const filtered = schedules.filter(s => s.id !== id);
@@ -292,8 +412,25 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
 
     // ---- Taken tracking (per-date) ----
 
-    const markAsTaken = useCallback(async (_scheduleId: string, reminderId: string, date?: string) => {
+    const markAsTaken = useCallback(async (scheduleId: string, reminderId: string, date?: string) => {
         const dateKey = date || todayKey();
+        const schedule = schedules.find(item => item.id === scheduleId);
+        const latestTakenTs = getLatestTakenTimestamp(takenRecords, reminderId);
+        const minimumInterval = schedule ? getMinimumDoseIntervalMinutes(schedule) : 24 * 60;
+        const requiredGapMinutes = Math.max(60, Math.floor(minimumInterval * 0.8));
+        const nowTs = Date.now();
+        const localToday = todayKey();
+
+        // Prevent accidental duplicate intake after timezone relocation or short repeated clicks.
+        if (latestTakenTs !== null && dateKey >= localToday) {
+            const elapsedMinutes = (nowTs - latestTakenTs) / 60000;
+            if (elapsedMinutes >= 0 && elapsedMinutes < requiredGapMinutes) {
+                setError('检测到短时间内重复服药记录，为避免多服，本次记录已拦截。');
+                return;
+            }
+        }
+
+        setError(null);
         const newRecords = { ...takenRecords };
         const dateRecords = { ...(newRecords[dateKey] || {}) };
         dateRecords[reminderId] = {
@@ -303,7 +440,7 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         };
         newRecords[dateKey] = dateRecords;
         saveTakenRecords(newRecords);
-    }, [takenRecords, saveTakenRecords]);
+    }, [takenRecords, saveTakenRecords, schedules]);
 
     const markAsMissed = useCallback(async (_scheduleId: string, reminderId: string, date?: string) => {
         const dateKey = date || todayKey();
@@ -343,8 +480,10 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
             .filter(schedule => {
                 if (!schedule.isActive) return false;
 
-                const startDate = schedule.startDate.split('T')[0];
-                const endDate = schedule.endDate?.split('T')[0];
+                const startDate = normalizeDateKey(schedule.startDate) || schedule.startDate.split('T')[0];
+                const endDate = schedule.endDate
+                    ? (normalizeDateKey(schedule.endDate) || schedule.endDate.split('T')[0])
+                    : undefined;
 
                 if (date < startDate) return false;
                 if (endDate && date > endDate) return false;
@@ -370,6 +509,7 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
     return {
         schedules,
         takenRecords,
+        anchorDate,
         isLoading,
         isSaving,
         error,
@@ -384,6 +524,7 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         setDateOverride,
         getSchedulesForDate,
         getTodaySchedules,
+        setAnchorDate,
     };
 }
 

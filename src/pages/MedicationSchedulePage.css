@@ -142,7 +142,23 @@
     width: 4px;
     height: 4px;
     border-radius: 50%;
-    background: var(--accent-coral);
+    background: #FF9800;
+}
+
+.calendar-day.dot-future::after {
+    background: #FF9800;
+}
+
+.calendar-day.dot-complete::after {
+    background: #43A047;
+}
+
+.calendar-day.dot-incomplete::after {
+    background: #E53935;
+}
+
+.calendar-day.dot-future::after {
+    background: #FBC02D;
 }
 
 .calendar-day {
@@ -307,6 +323,11 @@
 .reminder-status.pending {
     color: #FF9800;
     background: rgba(255, 152, 0, 0.1);
+}
+
+.reminder-status.pending:disabled {
+    opacity: 0.85;
+    cursor: not-allowed;
 }
 
 .reminder-status.missed {

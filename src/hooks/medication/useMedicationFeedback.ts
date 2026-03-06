@@ -7,11 +7,14 @@
 
 import { useState, useCallback } from 'react';
 import { supabase } from '../../services/supabase';
+import { vectorizeDocument } from '../../services/agentApi';
 
 // 类型定义
 export interface MedicationFeedback {
     id: string;
     scheduleId?: string;
+    reminderId?: string;
+    doseDate?: string;
     medicationName: string;
     mood: 'good' | 'neutral' | 'bad';
     content: string;
@@ -60,13 +63,53 @@ export function useMedicationFeedback(): UseMedicationFeedbackReturn {
             try {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) {
-                    await supabase.from('medication_feedback').insert({
+                    const { data: insertedFeedback, error: insertError } = await supabase
+                        .from('medication_feedback')
+                        .insert({
                         user_id: user.id,
                         schedule_id: feedback.scheduleId,
                         medication_name: feedback.medicationName,
                         mood: feedback.mood,
                         content: feedback.content,
                         side_effects: feedback.sideEffects,
+                        })
+                        .select('id')
+                        .single();
+
+                    if (insertError) {
+                        throw insertError;
+                    }
+
+                    // 异步向量化，失败不影响主流程
+                    const sideEffectsText = feedback.sideEffects.length
+                        ? feedback.sideEffects.join(', ')
+                        : '无';
+                    const ragContent = [
+                        `药物: ${feedback.medicationName}`,
+                        `感受: ${feedback.mood}`,
+                        `副作用标签: ${sideEffectsText}`,
+                        `反馈内容: ${feedback.content}`,
+                    ].join('\n');
+
+                    void vectorizeDocument({
+                        userId: user.id,
+                        sourceType: 'medication_feedback',
+                        sourceId: insertedFeedback?.id,
+                        content: ragContent,
+                        metadata: {
+                            medication_name: feedback.medicationName,
+                            mood: feedback.mood,
+                            side_effects: feedback.sideEffects,
+                            schedule_id: feedback.scheduleId || null,
+                            reminder_id: feedback.reminderId || null,
+                            dose_date: feedback.doseDate || null,
+                        },
+                    }).then((result) => {
+                        if (!result.success) {
+                            console.warn('[useMedicationFeedback] Vectorize failed:', result.error);
+                        }
+                    }).catch((vectorErr) => {
+                        console.warn('[useMedicationFeedback] Vectorize error:', vectorErr);
                     });
                 }
             } catch (syncError) {

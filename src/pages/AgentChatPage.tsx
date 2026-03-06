@@ -10,7 +10,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMedicationSchedule } from '../hooks/medication/useMedicationSchedule';
 import { useAgentChat } from '../hooks/agent/useAgentChat';
-import { IconSparkle, IconChat, IconNew, IconSend } from '../components/Icons';
+import { useConversationHistory } from '../hooks/agent/useConversationHistory';
+import { IconSparkle, IconChat, IconNew, IconSend, IconTrash, IconClose } from '../components/Icons';
 import './AgentChatPage.css';
 
 interface AgentChatPageProps {
@@ -18,17 +19,32 @@ interface AgentChatPageProps {
 }
 
 export default function AgentChatPage(_props: AgentChatPageProps) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { schedules } = useMedicationSchedule();
     const {
         messages,
+        conversationId,
         isTyping,
+        isLoadingConversation,
         sendMessage,
         sendPreset,
         newConversation,
+        loadConversation,
     } = useAgentChat();
+    const {
+        conversations,
+        isLoading: isHistoryLoading,
+        isLoadingMore: isHistoryLoadingMore,
+        deletingId,
+        error: historyError,
+        hasMore,
+        refresh,
+        loadMore,
+        deleteById,
+    } = useConversationHistory();
 
     const [inputText, setInputText] = useState('');
+    const [historyOpen, setHistoryOpen] = useState(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     const presetQuestions = schedules.length > 0
@@ -70,8 +86,107 @@ export default function AgentChatPage(_props: AgentChatPageProps) {
         }
     }, [handleSend]);
 
+    const formatConversationTime = useCallback((dateStr: string) => {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString(i18n.language || 'zh-CN', {
+            month: 'numeric',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    }, [i18n.language]);
+
+    const openHistoryDrawer = useCallback(() => {
+        setHistoryOpen(true);
+        void refresh();
+    }, [refresh]);
+
+    const closeHistoryDrawer = useCallback(() => {
+        setHistoryOpen(false);
+    }, []);
+
+    const handleConversationSelect = useCallback(async (id: string) => {
+        const loaded = await loadConversation(id);
+        if (loaded) {
+            closeHistoryDrawer();
+        }
+    }, [loadConversation, closeHistoryDrawer]);
+
+    const handleDeleteConversation = useCallback(async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (!window.confirm(t('agent.history.deleteConfirm', '确定删除这条对话吗？'))) {
+            return;
+        }
+
+        const deleted = await deleteById(id);
+        if (deleted && conversationId === id) {
+            newConversation();
+        }
+    }, [deleteById, conversationId, newConversation, t]);
+
     return (
         <div className="agent-page">
+            {historyOpen && <button type="button" className="history-backdrop" onClick={closeHistoryDrawer} aria-label="close history" />}
+
+            <aside className={`history-drawer ${historyOpen ? 'open' : ''}`}>
+                <div className="history-header">
+                    <h3>{t('agent.history.title', '历史对话')}</h3>
+                    <button type="button" className="history-close-btn" onClick={closeHistoryDrawer}>
+                        <IconClose size={16} />
+                    </button>
+                </div>
+
+                {historyError && <p className="history-error">{historyError}</p>}
+
+                {isHistoryLoading ? (
+                    <p className="history-loading">{t('app.loading')}</p>
+                ) : conversations.length === 0 ? (
+                    <p className="history-empty">{t('agent.history.empty', '暂无历史对话')}</p>
+                ) : (
+                    <div className="history-list">
+                        {conversations.map((item) => (
+                            <div
+                                key={item.id}
+                                className={`history-item ${conversationId === item.id ? 'active' : ''}`}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => handleConversationSelect(item.id)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        void handleConversationSelect(item.id);
+                                    }
+                                }}
+                            >
+                                <div className="history-item-main">
+                                    <p className="history-item-title">{item.title || t('agent.history.untitled', '新对话')}</p>
+                                    <p className="history-item-preview">
+                                        {item.lastMessage || t('agent.history.noMessages', '暂无消息')}
+                                    </p>
+                                    <p className="history-item-time">{formatConversationTime(item.updatedAt)}</p>
+                                </div>
+                                <button
+                                    className="history-delete-btn"
+                                    type="button"
+                                    aria-label="delete conversation"
+                                    onClick={(e) => handleDeleteConversation(e, item.id)}
+                                >
+                                    {deletingId === item.id ? '...' : <IconTrash size={14} />}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {hasMore && (
+                    <button className="history-load-more" onClick={() => void loadMore()} disabled={isHistoryLoadingMore}>
+                        {isHistoryLoadingMore
+                            ? t('agent.history.loadingMore', '加载中...')
+                            : t('agent.history.loadMore', '加载更多')}
+                    </button>
+                )}
+            </aside>
+
             {/* 用药冲突 Banner */}
             <div className={`conflict-banner conflict-${conflictStatus}`}>
                 <span className="conflict-light" />
@@ -80,11 +195,16 @@ export default function AgentChatPage(_props: AgentChatPageProps) {
                     {conflictStatus === 'yellow' && t('agent.possibleConflict', '可能存在用药相互作用，建议咨询医生')}
                     {conflictStatus === 'red' && t('agent.conflict', '检测到用药冲突！请立即咨询医生')}
                 </span>
-                {messages.length > 0 && (
-                    <button className="new-chat-btn" onClick={newConversation} title="新对话">
-                        <IconNew size={16} />
+                <div className="conflict-actions">
+                    <button type="button" className="history-chat-btn" onClick={openHistoryDrawer} title={t('agent.history.open', '历史对话')}>
+                        <IconChat size={16} />
                     </button>
-                )}
+                    {messages.length > 0 && (
+                        <button type="button" className="new-chat-btn" onClick={newConversation} title="新对话">
+                            <IconNew size={16} />
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* 聊天区域 */}
@@ -116,6 +236,9 @@ export default function AgentChatPage(_props: AgentChatPageProps) {
                     </div>
                 ) : (
                     <div className="chat-messages">
+                        {isLoadingConversation && (
+                            <div className="chat-loading-overlay">{t('agent.history.loadingConversation', '正在加载对话...')}</div>
+                        )}
                         {messages.map((msg) => (
                             <div
                                 key={msg.id}

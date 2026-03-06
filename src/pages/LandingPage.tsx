@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { useMedicationSchedule, type MedicationSchedule, type MedicationReminder } from '../hooks/medication/useMedicationSchedule';
 import { IconPill, IconSun, IconCheck, IconCamera, IconGuide, IconPlus } from '../components/Icons';
 import ConfirmDoseModal, { type DoseInfo } from '../components/ConfirmDoseModal';
+import { formatLocalDateKey } from '../utils/dateKey';
 import './LandingPage.css';
 
 interface LandingPageProps {
@@ -154,15 +155,17 @@ export default function LandingPage({
                 medicationName: nextDose.name,
                 dosage: nextDose.dosage,
                 time: nextDose.time,
+                doseDate: formatLocalDateKey(new Date()),
             });
         }
     }, [nextDose]);
 
     const handleDoseConfirmed = useCallback(async (scheduleId: string, reminderId: string) => {
-        await markAsTaken(scheduleId, reminderId);
+        const doseDate = confirmingDose?.doseDate || formatLocalDateKey(new Date());
+        await markAsTaken(scheduleId, reminderId, doseDate);
         setJustConfirmed(true);
         setTimeout(() => setJustConfirmed(false), 2000);
-    }, [markAsTaken]);
+    }, [markAsTaken, confirmingDose]);
 
     const handleModalClose = useCallback(() => {
         setConfirmingDose(null);

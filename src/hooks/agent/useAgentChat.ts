@@ -10,8 +10,9 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { chatWithAgent } from '../../services/agentApi';
+import { chatWithAgent, fetchConversationMessages } from '../../services/agentApi';
 import { useMedicationSchedule } from '../medication/useMedicationSchedule';
+import { useAuth } from '../user/useAuth';
 
 // =============================================
 // 类型
@@ -29,10 +30,12 @@ export interface UseAgentChatReturn {
     messages: ChatMessage[];
     conversationId: string | null;
     isTyping: boolean;
+    isLoadingConversation: boolean;
     error: string | null;
     sendMessage: (text: string) => Promise<void>;
     sendPreset: (text: string) => void;
     newConversation: () => void;
+    loadConversation: (id: string) => Promise<boolean>;
 }
 
 // =============================================
@@ -43,8 +46,10 @@ export function useAgentChat(): UseAgentChatReturn {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [conversationId, setConversationId] = useState<string | null>(null);
     const [isTyping, setIsTyping] = useState(false);
+    const [isLoadingConversation, setIsLoadingConversation] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { schedules } = useMedicationSchedule();
+    const { user } = useAuth();
 
     // 获取当前用药列表
     const medicationNames = useRef<string[]>([]);
@@ -77,6 +82,7 @@ export function useAgentChat(): UseAgentChatReturn {
             const response = await chatWithAgent({
                 conversationId: conversationId || undefined,
                 message: text.trim(),
+                userId: user?.id,
                 medications: medicationNames.current,
             });
 
@@ -114,7 +120,7 @@ export function useAgentChat(): UseAgentChatReturn {
         } finally {
             setIsTyping(false);
         }
-    }, [conversationId, isTyping]);
+    }, [conversationId, isTyping, user?.id]);
 
     /**
      * 发送预设问题（快捷方式）
@@ -133,14 +139,53 @@ export function useAgentChat(): UseAgentChatReturn {
         setIsTyping(false);
     }, []);
 
+    /**
+     * 加载历史会话消息
+     */
+    const loadConversation = useCallback(async (id: string): Promise<boolean> => {
+        if (!id) return false;
+        setIsLoadingConversation(true);
+        setError(null);
+
+        try {
+            const result = await fetchConversationMessages(id);
+            if (!result.success) {
+                setError(result.error || '加载历史消息失败');
+                return false;
+            }
+
+            const mapped: ChatMessage[] = (result.messages || [])
+                .filter((msg): msg is { id: string; role: 'user' | 'assistant'; content: string; createdAt: string } =>
+                    msg.role === 'user' || msg.role === 'assistant'
+                )
+                .map(msg => ({
+                    id: msg.id,
+                    role: msg.role,
+                    content: msg.content,
+                    timestamp: new Date(msg.createdAt),
+                }));
+
+            setMessages(mapped);
+            setConversationId(id);
+            return true;
+        } catch (err) {
+            setError(err instanceof Error ? err.message : '加载历史消息失败');
+            return false;
+        } finally {
+            setIsLoadingConversation(false);
+        }
+    }, []);
+
     return {
         messages,
         conversationId,
         isTyping,
+        isLoadingConversation,
         error,
         sendMessage,
         sendPreset,
         newConversation,
+        loadConversation,
     };
 }
 

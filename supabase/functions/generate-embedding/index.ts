@@ -80,14 +80,15 @@ serve(async (req) => {
                 const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
                 if (!authError && user) {
-                    // 保存到用户查询历史
+                    // 保存到统一 RAG 文档表
                     const { data, error: insertError } = await supabase
-                        .from('user_query_embeddings')
+                        .from('rag_documents')
                         .insert({
                             user_id: user.id,
-                            query_text: text.slice(0, 500), // 限制长度
-                            query_type: queryType,
+                            source_type: 'user_query',
+                            content: text.slice(0, 500), // 限制长度
                             embedding: embedding,
+                            metadata: { query_type: queryType },
                         })
                         .select('id')
                         .single();

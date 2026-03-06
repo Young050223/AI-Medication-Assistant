@@ -1,5 +1,30 @@
 # AI Medication Assistant - 开发日志
 
+## 2026-03-07 — 服药计划编辑修复 + RAG/对话历史基础设施
+
+### Bug修复
+- **服药计划编辑保存后不生效** — 修复 `MedicationSchedulePage.tsx` `doSave` 函数中的多处关键Bug：
+  - 修复未定义变量 `targetDateKey`、`targetSource` 导致运行时崩溃
+  - 修复"仅今天"范围在所有提醒过期时静默丢弃编辑
+  - 修复"未来所有"范围今天的 dateOverride 使用旧值而非编辑后新值
+  - **重写编辑保存逻辑**：简化为直接覆盖模式 — "仅今天"写入 dateOverride，"未来所有"冻结过去日期并更新 base schedule
+- 修复 `useMedicationSchedule` Hook 中 taken 状态泄漏到所有日期的 Bug（引入按日期隔离的 `takenRecords`）
+
+### 新增功能
+- **RAG 文档基础设施** — 新增 `007_rag_documents.sql` 迁移（统一向量存储表）
+- **对话历史 Hook** — 新增 `useConversationHistory.ts`
+- **日期工具库** — 新增 `src/utils/dateKey.ts`（本地日期格式化/解析，避免 UTC 漂移）
+- **向量化文档 Edge Function** — 新增 `supabase/functions/vectorize-document/`
+- **对话历史 Edge Function** — 新增 `supabase/functions/chat-history/`
+
+### 优化
+- Agent 聊天页面 UI 改版（`AgentChatPage.tsx` + CSS）
+- 确认服药弹窗优化（`ConfirmDoseModal.tsx`）
+- 底部导航栏样式调整
+- 设置页面样式更新
+
+---
+
 ## 2026-02-10 — M7 AI Agent 药物分析模块 + 项目重构
 
 ### 新增功能

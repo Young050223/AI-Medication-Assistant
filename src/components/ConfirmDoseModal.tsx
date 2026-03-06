@@ -16,6 +16,7 @@ export interface DoseInfo {
     medicationName: string;
     dosage: string;
     time: string;
+    doseDate: string;
 }
 
 interface ConfirmDoseModalProps {
@@ -24,12 +25,12 @@ interface ConfirmDoseModalProps {
     onClose: () => void;
 }
 
-type Step = 'feeling' | 'feedback' | 'animation';
+type Step = 'loading' | 'feeling' | 'feedback' | 'animation' | 'review';
 type Feeling = 'good' | 'mild' | 'severe';
 
 export default function ConfirmDoseModal({ dose, onConfirm, onClose }: ConfirmDoseModalProps) {
     const { t } = useTranslation();
-    const { createFeedback } = useMedicationFeedback();
+    const { createFeedback, getFeedbackHistory } = useMedicationFeedback();
     const {
         isListening,
         transcript,
@@ -38,10 +39,38 @@ export default function ConfirmDoseModal({ dose, onConfirm, onClose }: ConfirmDo
         stopListening,
     } = useSpeechRecognition();
 
-    const [step, setStep] = useState<Step>('feeling');
+    const [step, setStep] = useState<Step>('loading');
     const [feeling, setFeeling] = useState<Feeling | null>(null);
     const [feedbackText, setFeedbackText] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [existingFeedback, setExistingFeedback] = useState<{ mood: string; content: string } | null>(null);
+
+    // Check for existing feedback on mount
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            const history = await getFeedbackHistory(dose.medicationName);
+            if (cancelled) return;
+            const matchedFeedback = [...history].reverse().find(f =>
+                f.scheduleId === dose.scheduleId
+                && f.reminderId === dose.reminderId
+                && f.doseDate === dose.doseDate
+            );
+            if (matchedFeedback) {
+                setExistingFeedback({ mood: matchedFeedback.mood, content: matchedFeedback.content });
+                if (matchedFeedback.mood === 'good') {
+                    setFeeling('good');
+                    setStep('animation');
+                } else {
+                    setFeeling(matchedFeedback.mood === 'neutral' ? 'mild' : 'severe');
+                    setStep('review');
+                }
+            } else {
+                setStep('feeling');
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [dose.medicationName, dose.scheduleId, dose.reminderId, dose.doseDate, getFeedbackHistory]);
 
     // Sync speech transcript to feedbackText
     useEffect(() => {
@@ -78,6 +107,8 @@ export default function ConfirmDoseModal({ dose, onConfirm, onClose }: ConfirmDo
         if (f === 'good') {
             await createFeedback({
                 scheduleId: dose.scheduleId,
+                reminderId: dose.reminderId,
+                doseDate: dose.doseDate,
                 medicationName: dose.medicationName,
                 mood: 'good',
                 content: '',
@@ -99,6 +130,8 @@ export default function ConfirmDoseModal({ dose, onConfirm, onClose }: ConfirmDo
 
         await createFeedback({
             scheduleId: dose.scheduleId,
+            reminderId: dose.reminderId,
+            doseDate: dose.doseDate,
             medicationName: dose.medicationName,
             mood: feeling === 'mild' ? 'neutral' : 'bad',
             content: feedbackText.trim(),
@@ -121,6 +154,13 @@ export default function ConfirmDoseModal({ dose, onConfirm, onClose }: ConfirmDo
     return (
         <div className="dose-modal-overlay" onClick={onClose}>
             <div className="dose-modal" onClick={e => e.stopPropagation()}>
+
+                {/* ===== Loading ===== */}
+                {step === 'loading' && (
+                    <div className="dose-step" style={{ padding: '40px', textAlign: 'center' }}>
+                        <p className="dose-submitting">{t('app.loading', '加载中...')}</p>
+                    </div>
+                )}
 
                 {/* ===== Step 1: Feeling Selection ===== */}
                 {step === 'feeling' && (
@@ -259,6 +299,36 @@ export default function ConfirmDoseModal({ dose, onConfirm, onClose }: ConfirmDo
                                 }
                             </button>
                         </div>
+                    </div>
+                )}
+
+                {/* ===== Review: Show existing feedback ===== */}
+                {step === 'review' && existingFeedback && (
+                    <div className="dose-step dose-step-animation">
+                        <div className="anim-advisory">
+                            <div className="dose-header">
+                                <h3>{dose.medicationName}</h3>
+                                <p className="dose-meta">{dose.time} · {dose.dosage}</p>
+                            </div>
+                            <div style={{ margin: '16px 0', padding: '16px', background: 'var(--bg-input)', borderRadius: 'var(--radius-md)' }}>
+                                <p style={{ fontWeight: 700, marginBottom: '8px', color: existingFeedback.mood === 'good' ? 'var(--color-success)' : existingFeedback.mood === 'neutral' ? 'var(--color-warning)' : '#E53935' }}>
+                                    {existingFeedback.mood === 'good'
+                                        ? t('confirmDose.feelGood', '感受良好')
+                                        : existingFeedback.mood === 'neutral'
+                                            ? t('confirmDose.feelMild', '略有不适')
+                                            : t('confirmDose.feelSevere', '非常难受')
+                                    }
+                                </p>
+                                {existingFeedback.content && (
+                                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: '1.5' }}>
+                                        {existingFeedback.content}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <button className="anim-close" onClick={onClose}>
+                            {t('app.close', '关闭')}
+                        </button>
                     </div>
                 )}
 
