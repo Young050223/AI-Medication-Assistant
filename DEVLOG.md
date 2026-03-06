@@ -25,6 +25,42 @@
 
 ---
 
+## 2026-03-05 — 用药计划增强
+
+### 新增功能
+- **按日期服药记录隔离** — 引入 `TakenRecords` 按日期+提醒ID隔离服药状态，修复 taken 状态泄漏到所有日期的 Bug
+- **编辑范围确认弹窗** — 编辑计划保存时弹出「仅今天 / 未来全部」范围选择对话框
+- **状态切换弹窗** — 已服用/已错过状态标签可点击弹出切换弹窗
+- **确认时间窗口** — 新增 `graceMinutes` 表单字段，可配置确认按钮的 ±时间窗口
+
+### 优化
+- 反馈按钮改用统一 `ConfirmDoseModal` 组件
+- 状态弹窗、编辑按钮、删除按钮 UI 优化
+- 去除首页闹钟 emoji
+- 新增相关 i18n 翻译键
+
+---
+
+## 2026-02-14 — Phase 2：Agent 对话 + 日历 + 设计系统重构
+
+### 新增功能
+- **Agent 对话模块**
+  - 新增 `agent-chat` Edge Function（GPT-5.3 多轮对话）
+  - 新增 `useAgentChat` Hook 和 `AgentChatPage`（Gemini 风格 UI）
+  - 新增 `chat_conversations` & `chat_messages` 数据库表（迁移 006）
+
+- **自定义 Apple 风格日历** — `MedicationSchedulePage` 集成月视图日历，用药日标注圆点
+
+- **设置页面** — 新增 `SettingsPage`（语言/主题/个人资料/会员区）
+
+### 设计系统重构
+- **Warm Minimalist 设计语言** — 莫兰迪色调、Nunito 字体、双主题支持
+- **SVG 图标系统** — 新增 `Icons.tsx` 包含 35 个 Feather 风格 SVG 图标，替换全部 emoji
+- **全局 CSS 重构** — 毛玻璃效果、平滑渐变、微动画
+- OpenAI 模型升级：gpt-5.3（对话）、gpt-5.2（分析）
+
+---
+
 ## 2026-02-10 — M7 AI Agent 药物分析模块 + 项目重构
 
 ### 新增功能
@@ -64,6 +100,10 @@
 ### 安全改进
 - `.gitignore` 新增 `.env`、`.bak`、`supabase/.temp/` 排除规则
 - 从Git追踪中移除 `.env` 文件（含API密钥）
+
+### Bug修复（同日晚间）
+- 优化药物分析翻译逻辑，修复中文药名到英文的翻译链路
+- 新增 E2E 测试脚本
 
 ---
 
