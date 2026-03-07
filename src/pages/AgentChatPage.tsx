@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useMedicationSchedule } from '../hooks/medication/useMedicationSchedule';
 import { useAgentChat } from '../hooks/agent/useAgentChat';
 import { useConversationHistory } from '../hooks/agent/useConversationHistory';
-import { IconSparkle, IconChat, IconNew, IconSend, IconTrash, IconClose } from '../components/Icons';
+import { IconSparkle, IconChat, IconNew, IconSend, IconTrash, IconClose, IconMenu } from '../components/Icons';
 import './AgentChatPage.css';
 
 interface AgentChatPageProps {
@@ -187,6 +187,18 @@ export default function AgentChatPage(_props: AgentChatPageProps) {
                 )}
             </aside>
 
+            {/* 顶部导航栏 */}
+            <div className="agent-topbar">
+                <button type="button" className="topbar-menu-btn" onClick={openHistoryDrawer} title={t('agent.history.open', '历史对话')}>
+                    <IconMenu size={22} />
+                </button>
+                {messages.length > 0 && (
+                    <button type="button" className="topbar-new-btn" onClick={newConversation} title="新对话">
+                        <IconNew size={20} />
+                    </button>
+                )}
+            </div>
+
             {/* 用药冲突 Banner */}
             <div className={`conflict-banner conflict-${conflictStatus}`}>
                 <span className="conflict-light" />
@@ -195,16 +207,6 @@ export default function AgentChatPage(_props: AgentChatPageProps) {
                     {conflictStatus === 'yellow' && t('agent.possibleConflict', '可能存在用药相互作用，建议咨询医生')}
                     {conflictStatus === 'red' && t('agent.conflict', '检测到用药冲突！请立即咨询医生')}
                 </span>
-                <div className="conflict-actions">
-                    <button type="button" className="history-chat-btn" onClick={openHistoryDrawer} title={t('agent.history.open', '历史对话')}>
-                        <IconChat size={16} />
-                    </button>
-                    {messages.length > 0 && (
-                        <button type="button" className="new-chat-btn" onClick={newConversation} title="新对话">
-                            <IconNew size={16} />
-                        </button>
-                    )}
-                </div>
             </div>
 
             {/* 聊天区域 */}
@@ -275,7 +277,7 @@ export default function AgentChatPage(_props: AgentChatPageProps) {
                     <input
                         type="text"
                         className="chat-input"
-                        placeholder={t('agent.inputPlaceholder', '输入您的问题...')}
+                        placeholder={t('agent.inputPlaceholder', '请输入您的问题')}
                         value={inputText}
                         onChange={e => setInputText(e.target.value)}
                         onKeyDown={handleKeyDown}

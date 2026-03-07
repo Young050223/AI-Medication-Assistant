@@ -17,13 +17,14 @@ import './HealthProfilePage.css';
 interface HealthProfilePageProps {
     onComplete: () => void;
     onBack?: () => void;
+    onSkip?: () => void;
 }
 
 /**
  * 健康档案页面
  * 老年友好设计：大字体、简洁布局、清晰的输入提示
  */
-export function HealthProfilePage({ onComplete, onBack }: HealthProfilePageProps) {
+export function HealthProfilePage({ onComplete, onBack, onSkip }: HealthProfilePageProps) {
     const { t } = useTranslation();
     const {
         profile,
@@ -132,7 +133,21 @@ export function HealthProfilePage({ onComplete, onBack }: HealthProfilePageProps
                             <span>{t('common.back', '返回')}</span>
                         </button>
                     )}
-                    <h1 className="page-title">{t('healthProfile.title')}</h1>
+                    <div className="health-profile-header-row">
+                        <h1 className="page-title">{t('healthProfile.title')}</h1>
+                        {onSkip && (
+                            <button
+                                type="button"
+                                className="skip-button"
+                                onClick={onSkip}
+                            >
+                                <span>{t('healthProfile.skipForNow', '稍后再填')}</span>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M9 18l6-6-6-6" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
                     <p className="page-subtitle">{t('healthProfile.subtitle')}</p>
                 </div>
 

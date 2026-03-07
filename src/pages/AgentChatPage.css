@@ -9,7 +9,36 @@
     flex-direction: column;
     min-height: 100vh;
     background: var(--bg-primary);
-    padding-top: calc(16px + env(safe-area-inset-top, 20px));
+    padding-top: env(safe-area-inset-top, 20px);
+}
+
+/* ===== Top Nav Bar ===== */
+.agent-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+}
+
+.topbar-menu-btn,
+.topbar-new-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-primary);
+    -webkit-tap-highlight-color: transparent;
+    transition: background var(--transition-fast);
+}
+
+.topbar-menu-btn:active,
+.topbar-new-btn:active {
+    background: var(--bg-input);
 }
 
 /* ===== History Drawer ===== */
@@ -24,17 +53,19 @@
 .history-drawer {
     position: fixed;
     top: 0;
-    right: 0;
-    width: min(86vw, 380px);
+    left: 0;
+    width: min(80vw, 340px);
     height: 100vh;
+    height: 100dvh;
     background: var(--bg-secondary);
-    border-left: 1px solid var(--border-light);
-    box-shadow: -8px 0 28px rgba(20, 28, 34, 0.16);
-    transform: translateX(102%);
+    border-right: 1px solid var(--border-light);
+    box-shadow: 8px 0 28px rgba(20, 28, 34, 0.16);
+    transform: translateX(-102%);
     transition: transform var(--transition-fast);
     z-index: 50;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .history-drawer.open {
@@ -46,7 +77,9 @@
     align-items: center;
     justify-content: space-between;
     padding: 16px;
+    padding-top: calc(16px + env(safe-area-inset-top, 20px));
     border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
 }
 
 .history-header h3 {
@@ -247,32 +280,7 @@
     text-overflow: ellipsis;
 }
 
-.conflict-actions {
-    display: flex;
-    gap: 8px;
-    flex-shrink: 0;
-}
 
-.history-chat-btn,
-.new-chat-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-light);
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: transform var(--transition-fast);
-}
-
-.history-chat-btn:active,
-.new-chat-btn:active {
-    transform: scale(0.9);
-}
 
 /* ===== Chat Area ===== */
 .chat-area {

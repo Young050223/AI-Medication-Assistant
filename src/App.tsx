@@ -134,6 +134,11 @@ function App() {
             setCurrentPage('landing');
             setCurrentTab('home');
           }}
+          onSkip={() => {
+            console.log('[App] 用户跳过健康档案填写');
+            setCurrentPage('landing');
+            setCurrentTab('home');
+          }}
           onBack={() => {
             setCurrentPage(previousPage);
             if (previousPage === 'settings') setCurrentTab('me');
@@ -199,6 +204,10 @@ function App() {
           onNavigateToAgentAnalysis={() => {
             setCurrentPage('agent');
             setCurrentTab('agent');
+          }}
+          onNavigateToHealthProfile={() => {
+            setPreviousPage('landing');
+            setCurrentPage('healthProfile');
           }}
           onLogout={handleLogout}
           onNavigateToFeedback={(medicationName: string, scheduleId: string) => {

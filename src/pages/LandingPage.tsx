@@ -8,7 +8,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMedicationSchedule, type MedicationSchedule, type MedicationReminder } from '../hooks/medication/useMedicationSchedule';
-import { IconPill, IconSun, IconCheck, IconCamera, IconGuide, IconPlus } from '../components/Icons';
+import { useHealthProfile } from '../hooks/user/useHealthProfile';
+import { IconPill, IconSun, IconCheck, IconCamera, IconGuide, IconPlus, IconClipboard } from '../components/Icons';
 import ConfirmDoseModal, { type DoseInfo } from '../components/ConfirmDoseModal';
 import { formatLocalDateKey } from '../utils/dateKey';
 import './LandingPage.css';
@@ -19,6 +20,7 @@ interface LandingPageProps {
     onNavigateToSchedules: () => void;
     onNavigateToAddSchedule: () => void;
     onNavigateToAgentAnalysis: () => void;
+    onNavigateToHealthProfile: () => void;
     onLogout: () => void;
     onNavigateToFeedback?: (medicationName: string, scheduleId: string) => void;
 }
@@ -96,9 +98,11 @@ export default function LandingPage({
     onNavigateToSchedules,
     onNavigateToAddSchedule,
     onNavigateToAgentAnalysis,
+    onNavigateToHealthProfile,
 }: LandingPageProps) {
     const { t, i18n } = useTranslation();
     const { schedules, isLoading, markAsTaken, getTodaySchedules } = useMedicationSchedule();
+    const { isProfileComplete } = useHealthProfile();
     const [confirmingDose, setConfirmingDose] = useState<DoseInfo | null>(null);
     const [justConfirmed, setJustConfirmed] = useState(false);
 
@@ -184,6 +188,18 @@ export default function LandingPage({
 
     return (
         <div className="landing-page">
+            {/* 健康档案未完善提醒 Banner */}
+            {!isProfileComplete() && (
+                <div className="profile-banner" onClick={onNavigateToHealthProfile}>
+                    <span className="profile-banner-icon"><IconClipboard size={20} /></span>
+                    <div className="profile-banner-text">
+                        <span className="profile-banner-title">{t('landing.profileBannerTitle', '健康档案未完善')}</span>
+                        <span className="profile-banner-desc">{t('landing.profileBannerDesc', '完善健康档案以获得更精准的用药建议')}</span>
+                    </div>
+                    <span className="profile-banner-action">{t('landing.profileBannerAction', '去完善')} ›</span>
+                </div>
+            )}
+
             {/* 顶部 Header */}
             <header className="landing-header">
                 <div className="greeting-section">

@@ -86,6 +86,7 @@ const resources = {
                 genderRequired: '请选择性别',
                 heightRequired: '请填写身高',
                 weightRequired: '请填写体重',
+                skipForNow: '稍后再填',
             },
             // 导航
             nav: {
@@ -150,6 +151,9 @@ const resources = {
                 loading: '加载中...',
                 feedbackTitle: '服药反馈',
                 feedbackPlaceholder: '还有其他感受吗？（可选）',
+                profileBannerTitle: '健康档案未完善',
+                profileBannerDesc: '完善健康档案以获得更精准的用药建议',
+                profileBannerAction: '去完善',
             },
             // 服药计划
             schedule: {
@@ -280,7 +284,7 @@ const resources = {
             // AI Agent
             agent: {
                 title: '药物分析',
-                inputPlaceholder: '请输入药物名称...',
+                inputPlaceholder: '请输入您的问题',
                 analyze: '分析',
                 analyzing: '分析中...',
                 retry: '重试',
@@ -439,6 +443,7 @@ const resources = {
                 genderRequired: '請選擇性別',
                 heightRequired: '請填寫身高',
                 weightRequired: '請填寫體重',
+                skipForNow: '稍後再填',
             },
             nav: {
                 home: '首頁',
@@ -500,6 +505,9 @@ const resources = {
                 feedbackTitle: '服藥反饋',
                 feedbackPlaceholder: '還有其他感受嗎？（可選）',
                 loading: '載入中...',
+                profileBannerTitle: '健康檔案未完善',
+                profileBannerDesc: '完善健康檔案以獲得更精準的用藥建議',
+                profileBannerAction: '去完善',
             },
             schedule: {
                 title: '服藥計劃',
@@ -619,7 +627,7 @@ const resources = {
             },
             agent: {
                 title: '藥物分析',
-                inputPlaceholder: '請輸入藥物名稱...',
+                inputPlaceholder: '請輸入您的問題',
                 analyze: '分析',
                 analyzing: '分析中...',
                 retry: '重試',
@@ -777,6 +785,7 @@ const resources = {
                 genderRequired: 'Please select gender',
                 heightRequired: 'Please enter height',
                 weightRequired: 'Please enter weight',
+                skipForNow: 'Fill in later',
             },
             nav: {
                 home: 'Home',
@@ -838,6 +847,9 @@ const resources = {
                 feedbackTitle: 'Medication Feedback',
                 feedbackPlaceholder: 'Any other feelings? (optional)',
                 loading: 'Loading...',
+                profileBannerTitle: 'Health profile incomplete',
+                profileBannerDesc: 'Complete your profile for personalized medication advice',
+                profileBannerAction: 'Complete',
             },
             schedule: {
                 title: 'Medication Schedule',
@@ -957,7 +969,7 @@ const resources = {
             },
             agent: {
                 title: 'Drug Analysis',
-                inputPlaceholder: 'Enter drug name...',
+                inputPlaceholder: 'Ask your question...',
                 analyze: 'Analyze',
                 analyzing: 'Analyzing...',
                 retry: 'Retry',
