@@ -115,7 +115,7 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
     const [appliedAnchorDate, setAppliedAnchorDate] = useState<string | null>(null);
 
     // 表单状态
-    const [showAddForm, setShowAddForm] = useState(autoOpenAdd === true);
+    const [showAddForm, setShowAddForm] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
     const [, setEditScope] = useState<'today' | 'future'>('future');
@@ -157,6 +157,24 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
         setAppliedAnchorDate(anchorDateKey);
         setFormData(prev => ({ ...prev, startDate: todayStr }));
     }, [isLoading, anchorDate, todayStr, appliedAnchorDate]);
+
+    // 当 autoOpenAdd 为 true 时，加载完成后自动打开添加表单
+    useEffect(() => {
+        if (autoOpenAdd && !isLoading) {
+            resetForm();
+            setShowAddForm(true);
+        }
+    }, [autoOpenAdd, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // 确保 startDate 始终跟随当前日期（防止跨日后表单日期过期）
+    useEffect(() => {
+        setFormData(prev => {
+            if (prev.startDate !== todayStr && !prev.startDate) {
+                return { ...prev, startDate: todayStr };
+            }
+            return prev;
+        });
+    }, [todayStr]);
 
     // 计算有用药的日期集合
     const medicationDates = useMemo(() => {
