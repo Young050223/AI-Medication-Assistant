@@ -98,6 +98,7 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
         createSchedule,
         updateSchedule,
         deleteSchedule,
+        setDateOverride,
         markAsTaken,
         markAsMissed,
         getSchedulesForDate,
@@ -119,6 +120,11 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
     const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
     const [, setEditScope] = useState<'today' | 'future'>('future');
     const [showScopeDialog, setShowScopeDialog] = useState(false);
+    const [showDeleteScopeDialog, setShowDeleteScopeDialog] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<{
+        scheduleId: string;
+        dateKey: string;
+    } | null>(null);
     const [confirmingDose, setConfirmingDose] = useState<DoseInfo | null>(null);
     const [statusToggle, setStatusToggle] = useState<{
         scheduleId: string;
@@ -141,26 +147,33 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
 
     useEffect(() => {
         if (isLoading) return;
-        const targetDateKey = normalizeDateKey(anchorDate) || todayStr;
-        if (appliedAnchorDate === targetDateKey) return;
-        const targetDate = parseDateKeyAsLocalDate(targetDateKey);
-        setSelectedDate(targetDate);
-        setCalendarYear(targetDate.getFullYear());
-        setCalendarMonth(targetDate.getMonth());
-        setAppliedAnchorDate(targetDateKey);
-        setFormData(prev => ({ ...prev, startDate: targetDateKey }));
+        const anchorDateKey = normalizeDateKey(anchorDate) || todayStr;
+        if (appliedAnchorDate === anchorDateKey) return;
+        // 日历默认定位到今天，而非用药周期锚点
+        const calendarTarget = parseDateKeyAsLocalDate(todayStr);
+        setSelectedDate(calendarTarget);
+        setCalendarYear(calendarTarget.getFullYear());
+        setCalendarMonth(calendarTarget.getMonth());
+        setAppliedAnchorDate(anchorDateKey);
+        setFormData(prev => ({ ...prev, startDate: todayStr }));
     }, [isLoading, anchorDate, todayStr, appliedAnchorDate]);
 
     // 计算有用药的日期集合
     const medicationDates = useMemo(() => {
         const dates = new Set<string>();
         schedules.filter(s => s.isActive).forEach(schedule => {
-            const start = parseDateKeyAsLocalDate(schedule.startDate.split('T')[0]);
-            const end = schedule.endDate
-                ? parseDateKeyAsLocalDate(schedule.endDate.split('T')[0])
+            const startKey = normalizeDateKey(schedule.startDate) || schedule.startDate.split('T')[0];
+            const start = parseDateKeyAsLocalDate(startKey);
+            const endKey = schedule.endDate
+                ? (normalizeDateKey(schedule.endDate) || schedule.endDate.split('T')[0])
                 : new Date(start.getFullYear(), start.getMonth(), start.getDate() + 30);
+            const end = typeof endKey === 'string'
+                ? parseDateKeyAsLocalDate(endKey)
+                : endKey;
             for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                dates.add(formatLocalDateKey(d));
+                const dateKey = formatLocalDateKey(d);
+                if (schedule.dateOverrides?.[dateKey]?.isDeleted) continue;
+                dates.add(dateKey);
             }
         });
         return dates;
@@ -352,14 +365,14 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
             frequency: 'thriceDaily',
             instructions: '',
             reminderTimes: ['08:00', '12:00', '18:00'],
-            startDate: normalizeDateKey(anchorDate) || todayStr,
+            startDate: todayStr,
             durationDays: '7',
             graceMinutes: '',
         });
         setIsEditing(false);
         setEditingScheduleId(null);
         setEditScope('future');
-    }, [todayStr, anchorDate]);
+    }, [todayStr]);
 
     const openConfirmModal = useCallback((schedule: any, reminder: any, doseDate: string) => {
         setConfirmingDose({
@@ -375,7 +388,6 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
     const handleDoseConfirmed = useCallback(async (scheduleId: string, reminderId: string) => {
         const doseDate = confirmingDose?.doseDate || selectedDateKey;
         await markAsTaken(scheduleId, reminderId, doseDate);
-        setConfirmingDose(null);
     }, [markAsTaken, selectedDateKey, confirmingDose]);
 
     const handleStatusChange = useCallback(async (newStatus: 'taken' | 'missed') => {
@@ -550,11 +562,69 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
         await doSave(scope);
     }, [doSave]);
 
-    const handleDelete = useCallback(async (id: string) => {
-        if (confirm(t('schedule.deleteConfirm'))) {
-            await deleteSchedule(id);
+    const closeDeleteScopeDialog = useCallback(() => {
+        setShowDeleteScopeDialog(false);
+        setPendingDelete(null);
+    }, []);
+
+    const handleDelete = useCallback((scheduleId: string) => {
+        setPendingDelete({
+            scheduleId,
+            dateKey: selectedDateKey,
+        });
+        setShowDeleteScopeDialog(true);
+    }, [selectedDateKey]);
+
+    const handleDeleteWithScope = useCallback(async (scope: 'today' | 'future') => {
+        if (!pendingDelete) return;
+        const { scheduleId, dateKey } = pendingDelete;
+        const target = schedules.find(s => s.id === scheduleId);
+        if (!target) {
+            closeDeleteScopeDialog();
+            return;
         }
-    }, [deleteSchedule, t]);
+
+        if (scope === 'today') {
+            await setDateOverride(scheduleId, dateKey, {
+                isDeleted: true,
+                reminderTimes: [],
+                reminders: [],
+            });
+            closeDeleteScopeDialog();
+            return;
+        }
+
+        const startDateKey = normalizeDateKey(target.startDate) || target.startDate.split('T')[0];
+        const endDateKey = target.endDate
+            ? (normalizeDateKey(target.endDate) || target.endDate.split('T')[0])
+            : null;
+
+        if (dateKey <= startDateKey) {
+            await deleteSchedule(scheduleId);
+            closeDeleteScopeDialog();
+            return;
+        }
+
+        if (endDateKey && dateKey > endDateKey) {
+            closeDeleteScopeDialog();
+            return;
+        }
+
+        const previousDate = parseDateKeyAsLocalDate(dateKey);
+        previousDate.setDate(previousDate.getDate() - 1);
+        const trimmedOverrides = Object.entries(target.dateOverrides || {}).reduce<Record<string, NonNullable<typeof target.dateOverrides>[string]>>((acc, [key, value]) => {
+            if (key < dateKey) {
+                acc[key] = value;
+            }
+            return acc;
+        }, {});
+
+        await updateSchedule(scheduleId, {
+            endDate: formatLocalDateKey(previousDate),
+            dateOverrides: trimmedOverrides,
+        });
+        closeDeleteScopeDialog();
+    }, [pendingDelete, schedules, setDateOverride, closeDeleteScopeDialog, deleteSchedule, updateSchedule]);
 
     if (isLoading) {
         return (
@@ -944,6 +1014,40 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
                                 className="anim-close"
                                 style={{ marginTop: '16px', width: '100%' }}
                                 onClick={() => setShowScopeDialog(false)}
+                            >
+                                {t('app.cancel', '取消')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showDeleteScopeDialog && pendingDelete && (
+                <div className="dose-modal-overlay" style={{ zIndex: 2600 }} onClick={closeDeleteScopeDialog}>
+                    <div className="dose-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '340px' }}>
+                        <div className="dose-step" style={{ padding: '24px 20px' }}>
+                            <div className="dose-header" style={{ marginBottom: '16px' }}>
+                                <h3 style={{ fontSize: '18px' }}>{t('schedule.deleteScope', '删除范围')}</h3>
+                                <p className="dose-meta">{t('schedule.deleteScopePrompt', '删除这个计划的哪些日期？')}</p>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <button
+                                    className="status-option-btn status-taken"
+                                    onClick={() => handleDeleteWithScope('today')}
+                                >
+                                    <span>{t('schedule.deleteTodayOnly', '仅删除当天')}</span>
+                                </button>
+                                <button
+                                    className="status-option-btn status-taken"
+                                    onClick={() => handleDeleteWithScope('future')}
+                                >
+                                    <span>{t('schedule.deleteFutureAll', '删除未来全部')}</span>
+                                </button>
+                            </div>
+                            <button
+                                className="anim-close"
+                                style={{ marginTop: '16px', width: '100%' }}
+                                onClick={closeDeleteScopeDialog}
                             >
                                 {t('app.cancel', '取消')}
                             </button>

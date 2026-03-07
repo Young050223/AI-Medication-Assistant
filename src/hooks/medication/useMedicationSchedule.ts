@@ -42,6 +42,8 @@ export interface MedicationSchedule {
 }
 
 export interface ScheduleOverride {
+    /** When true, this schedule is hidden on the specific date. */
+    isDeleted?: boolean;
     medicationName?: string;
     medicationDosage?: string;
     frequency?: string;
@@ -487,6 +489,7 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
 
                 if (date < startDate) return false;
                 if (endDate && date > endDate) return false;
+                if (schedule.dateOverrides?.[date]?.isDeleted) return false;
 
                 return true;
             })
