@@ -66,6 +66,10 @@
 
   /* ── Typography ── */
   --font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --app-font-scale-factor: 1;
+  --app-root-font-size: 16px;
+  --app-text-size-adjust: 100%;
+  --bottom-nav-height: calc(84px + env(safe-area-inset-bottom, 0px));
 
   /* ── Transition ── */
   --transition-fast: 0.15s ease;
@@ -81,6 +85,24 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-font-size="small"] {
+  --app-font-scale-factor: 0.94;
+  --app-root-font-size: 15px;
+  --app-text-size-adjust: 95%;
+}
+
+:root[data-font-size="medium"] {
+  --app-font-scale-factor: 1;
+  --app-root-font-size: 16px;
+  --app-text-size-adjust: 100%;
+}
+
+:root[data-font-size="large"] {
+  --app-font-scale-factor: 1.08;
+  --app-root-font-size: 17px;
+  --app-text-size-adjust: 108%;
 }
 
 /* ===== Dark Theme ===== */
@@ -146,11 +168,13 @@ a:hover {
 
 body {
   margin: 0;
-  min-width: 320px;
+  min-width: 0;
   min-height: 100vh;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   overscroll-behavior: none;
+  -webkit-text-size-adjust: var(--app-text-size-adjust);
+  text-size-adjust: var(--app-text-size-adjust);
 }
 
 /* 隐藏滚动条 */

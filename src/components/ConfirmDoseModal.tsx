@@ -4,10 +4,12 @@
  * 3 步流程：感受选择 → 反馈输入（文字+语音）→ 鼓励/提醒动画
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import useMedicationFeedback from '../hooks/medication/useMedicationFeedback';
 import { useSpeechRecognition } from '../hooks/common/useSpeechRecognition';
+import { useAudioRecorder } from '../hooks/common/useAudioRecorder';
+import { voiceFeedbackAssist } from '../services/agentApi';
 import './ConfirmDoseModal.css';
 
 export interface DoseInfo {
@@ -17,6 +19,7 @@ export interface DoseInfo {
     dosage: string;
     time: string;
     doseDate: string;
+    instructions?: string;
 }
 
 interface ConfirmDoseModalProps {
@@ -28,22 +31,71 @@ interface ConfirmDoseModalProps {
 type Step = 'loading' | 'feeling' | 'feedback' | 'animation' | 'review';
 type Feeling = 'good' | 'mild' | 'severe';
 
+type FeedbackLanguage = 'zh-CN' | 'zh-TW' | 'en';
+
+function mapI18nLang(language: string): FeedbackLanguage {
+    const normalized = language.toLowerCase();
+    if (normalized.startsWith('zh-tw') || normalized.startsWith('zh-hk')) return 'zh-TW';
+    if (normalized.startsWith('en')) return 'en';
+    return 'zh-CN';
+}
+
+async function blobToDataUrl(blob: Blob): Promise<string> {
+    const data = await blob.arrayBuffer();
+    const bytes = new Uint8Array(data);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        const sub = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode(...sub);
+    }
+    const base64 = btoa(binary);
+    const mimeType = blob.type || 'audio/webm';
+    return `data:${mimeType};base64,${base64}`;
+}
+
 export default function ConfirmDoseModal({ dose, onConfirm, onClose }: ConfirmDoseModalProps) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { createFeedback, getFeedbackHistory } = useMedicationFeedback();
+
     const {
-        isListening,
-        transcript,
-        isAvailable: voiceAvailable,
-        startListening,
-        stopListening,
+        isAvailable: recorderAvailable,
+        isRecording,
+        startRecording,
+        stopRecording,
+        error: recorderError,
+        clearError: clearRecorderError,
+    } = useAudioRecorder();
+
+    const {
+        isListening: fallbackListening,
+        transcript: fallbackTranscript,
+        isAvailable: fallbackVoiceAvailable,
+        startListening: startFallbackListening,
+        stopListening: stopFallbackListening,
+        error: fallbackSpeechError,
     } = useSpeechRecognition();
 
     const [step, setStep] = useState<Step>('loading');
     const [feeling, setFeeling] = useState<Feeling | null>(null);
     const [feedbackText, setFeedbackText] = useState('');
+    const [rawTranscript, setRawTranscript] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSummarizing, setIsSummarizing] = useState(false);
+    const [assistError, setAssistError] = useState<string | null>(null);
+    const [isUserEdited, setIsUserEdited] = useState(false);
     const [existingFeedback, setExistingFeedback] = useState<{ mood: string; content: string } | null>(null);
+
+    const summaryTimerRef = useRef<number | null>(null);
+    const transcriptRef = useRef('');
+    const summaryRequestIdRef = useRef(0);
+    const chunkQueueRef = useRef<Promise<void>>(Promise.resolve());
+    const isUserEditedRef = useRef(false);
+
+    const usingCloudAsr = recorderAvailable;
+    const isListening = usingCloudAsr ? isRecording : fallbackListening;
+    const voiceAvailable = usingCloudAsr || fallbackVoiceAvailable;
+    const feedbackLanguage = mapI18nLang(i18n.language || 'zh-CN');
 
     // Check for existing feedback on mount
     useEffect(() => {
@@ -72,12 +124,115 @@ export default function ConfirmDoseModal({ dose, onConfirm, onClose }: ConfirmDo
         return () => { cancelled = true; };
     }, [dose.medicationName, dose.scheduleId, dose.reminderId, dose.doseDate, getFeedbackHistory]);
 
-    // Sync speech transcript to feedbackText
-    useEffect(() => {
-        if (transcript) {
-            setFeedbackText(transcript);
+    const requestSummary = useCallback(async (
+        transcriptText: string,
+        forceApply: boolean = false,
+    ) => {
+        const normalizedText = transcriptText.trim();
+        if (!normalizedText || !feeling) return;
+
+        const requestId = ++summaryRequestIdRef.current;
+        setIsSummarizing(true);
+        setAssistError(null);
+
+        const result = await voiceFeedbackAssist({
+            action: 'summarize',
+            transcript: normalizedText,
+            medicationName: dose.medicationName,
+            mood: feeling,
+            language: feedbackLanguage,
+        });
+
+        if (requestId !== summaryRequestIdRef.current) return;
+        setIsSummarizing(false);
+
+        if (!result.success) {
+            setAssistError(result.error || t('app.error', '处理失败'));
+            return;
         }
-    }, [transcript]);
+
+        const medicalText = (result.medicalText || '').trim();
+        if (!medicalText) return;
+        if (forceApply || !isUserEditedRef.current) {
+            setFeedbackText(medicalText);
+        }
+    }, [dose.medicationName, feeling, feedbackLanguage, t]);
+
+    const queueSummary = useCallback((transcriptText: string, immediate: boolean = false) => {
+        const task = () => {
+            void requestSummary(transcriptText);
+        };
+
+        if (summaryTimerRef.current) {
+            window.clearTimeout(summaryTimerRef.current);
+            summaryTimerRef.current = null;
+        }
+
+        if (immediate) {
+            task();
+            return;
+        }
+
+        summaryTimerRef.current = window.setTimeout(task, 900);
+    }, [requestSummary]);
+
+    const appendTranscriptAndSummarize = useCallback((snippet: string) => {
+        const normalized = snippet.trim();
+        if (!normalized) return;
+
+        setRawTranscript(prev => {
+            const base = prev.trim();
+            const merged = base
+                ? (base.endsWith(normalized) ? base : `${base} ${normalized}`.trim())
+                : normalized;
+
+            transcriptRef.current = merged;
+            if (!isUserEditedRef.current) {
+                setFeedbackText(merged);
+            }
+            queueSummary(merged);
+            return merged;
+        });
+    }, [queueSummary]);
+
+    const processAudioChunk = useCallback(async (chunk: Blob) => {
+        const audioDataUrl = await blobToDataUrl(chunk);
+        const result = await voiceFeedbackAssist({
+            action: 'transcribe',
+            audioDataUrl,
+            language: feedbackLanguage,
+        });
+
+        if (!result.success) {
+            setAssistError(result.error || t('app.error', '处理失败'));
+            return;
+        }
+
+        appendTranscriptAndSummarize(result.transcript || '');
+    }, [appendTranscriptAndSummarize, feedbackLanguage, t]);
+
+    const enqueueAudioChunk = useCallback((chunk: Blob) => {
+        chunkQueueRef.current = chunkQueueRef.current
+            .then(async () => {
+                await processAudioChunk(chunk);
+            })
+            .catch((err) => {
+                console.error('[ConfirmDoseModal] enqueueAudioChunk error:', err);
+                setAssistError('语音处理失败');
+            });
+    }, [processAudioChunk]);
+
+    // Fallback to local speech recognition if MediaRecorder is unavailable
+    useEffect(() => {
+        if (usingCloudAsr || !fallbackTranscript) return;
+
+        transcriptRef.current = fallbackTranscript;
+        setRawTranscript(fallbackTranscript);
+        if (!isUserEditedRef.current) {
+            setFeedbackText(fallbackTranscript);
+        }
+        queueSummary(fallbackTranscript);
+    }, [fallbackTranscript, queueSummary, usingCloudAsr]);
 
     // Animation auto-close timer
     useEffect(() => {
@@ -90,11 +245,17 @@ export default function ConfirmDoseModal({ dose, onConfirm, onClose }: ConfirmDo
     // Stop listening on unmount
     useEffect(() => {
         return () => {
-            if (isListening) {
-                stopListening();
+            if (summaryTimerRef.current) {
+                window.clearTimeout(summaryTimerRef.current);
+            }
+            if (isRecording) {
+                void stopRecording();
+            }
+            if (fallbackListening) {
+                void stopFallbackListening();
             }
         };
-    }, [isListening, stopListening]);
+    }, [fallbackListening, isRecording, stopFallbackListening, stopRecording]);
 
     // Step 1: Select feeling
     const handleFeeling = useCallback(async (f: Feeling) => {
@@ -125,7 +286,20 @@ export default function ConfirmDoseModal({ dose, onConfirm, onClose }: ConfirmDo
     // Step 2: Submit feedback text
     const handleSubmitFeedback = useCallback(async () => {
         if (!feeling) return;
-        if (isListening) await stopListening();
+
+        if (isRecording) {
+            await stopRecording();
+            await chunkQueueRef.current;
+            if (transcriptRef.current.trim()) {
+                await requestSummary(transcriptRef.current, !isUserEditedRef.current);
+            }
+        } else if (fallbackListening) {
+            await stopFallbackListening();
+            if (transcriptRef.current.trim()) {
+                await requestSummary(transcriptRef.current, !isUserEditedRef.current);
+            }
+        }
+
         setIsSubmitting(true);
 
         await createFeedback({
@@ -140,16 +314,69 @@ export default function ConfirmDoseModal({ dose, onConfirm, onClose }: ConfirmDo
 
         setIsSubmitting(false);
         setStep('animation');
-    }, [feeling, feedbackText, dose, createFeedback, isListening, stopListening]);
+    }, [
+        createFeedback,
+        dose,
+        fallbackListening,
+        feeling,
+        feedbackText,
+        isRecording,
+        requestSummary,
+        stopFallbackListening,
+        stopRecording,
+    ]);
 
     // Toggle voice recording
     const toggleVoice = useCallback(async () => {
-        if (isListening) {
-            await stopListening();
+        setAssistError(null);
+        clearRecorderError();
+
+        if (usingCloudAsr) {
+            if (isRecording) {
+                await stopRecording();
+                await chunkQueueRef.current;
+                if (transcriptRef.current.trim()) {
+                    await requestSummary(transcriptRef.current, !isUserEditedRef.current);
+                }
+            } else {
+                transcriptRef.current = '';
+                setRawTranscript('');
+                setIsUserEdited(false);
+                isUserEditedRef.current = false;
+                if (!isUserEditedRef.current) {
+                    setFeedbackText('');
+                }
+
+                await startRecording({
+                    timesliceMs: 2200,
+                    onChunk: (chunk) => {
+                        enqueueAudioChunk(chunk);
+                    },
+                });
+            }
         } else {
-            await startListening();
+            if (fallbackListening) {
+                await stopFallbackListening();
+            } else {
+                setIsUserEdited(false);
+                isUserEditedRef.current = false;
+                setRawTranscript('');
+                transcriptRef.current = '';
+                await startFallbackListening();
+            }
         }
-    }, [isListening, startListening, stopListening]);
+    }, [
+        clearRecorderError,
+        enqueueAudioChunk,
+        fallbackListening,
+        requestSummary,
+        startFallbackListening,
+        startRecording,
+        stopFallbackListening,
+        stopRecording,
+        usingCloudAsr,
+        isRecording,
+    ]);
 
     return (
         <div className="dose-modal-overlay" onClick={onClose}>
@@ -248,7 +475,11 @@ export default function ConfirmDoseModal({ dose, onConfirm, onClose }: ConfirmDo
                             className="feedback-textarea"
                             placeholder={t('confirmDose.feedbackPlaceholder', '请描述您的不适症状...')}
                             value={feedbackText}
-                            onChange={e => setFeedbackText(e.target.value)}
+                            onChange={e => {
+                                setFeedbackText(e.target.value);
+                                setIsUserEdited(true);
+                                isUserEditedRef.current = true;
+                            }}
                             rows={4}
                             autoFocus
                         />
@@ -279,6 +510,19 @@ export default function ConfirmDoseModal({ dose, onConfirm, onClose }: ConfirmDo
                                 }
                             </span>
                         </div>
+                        {isSummarizing && (
+                            <p className="voice-status">
+                                {t('confirmDose.aiSummarizing', '正在生成医学化总结...')}
+                            </p>
+                        )}
+                        {isUserEdited && rawTranscript && (
+                            <p className="voice-status">
+                                {t('confirmDose.userEditedHint', '已切换为手动编辑，AI结果不会自动覆盖')}
+                            </p>
+                        )}
+                        {(assistError || recorderError || fallbackSpeechError) && (
+                            <p className="voice-error">{assistError || recorderError || fallbackSpeechError}</p>
+                        )}
 
                         <div className="feedback-actions">
                             <button

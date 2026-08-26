@@ -11,7 +11,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-user-jwt',
 };
 
 interface UserProfile {
@@ -74,11 +74,11 @@ const MESSAGES = {
     },
     'en': {
         allergyTitle: '⚠️ Allergy Risk',
-        allergyMessage: (allergy: string) => `This medication may contain an allergen you\'ve recorded: ${allergy}`,
+        allergyMessage: (allergy: string) => `This medication may contain an allergen you've recorded: ${allergy}`,
         contraTitle: '🚫 Contraindication',
         contraMessage: (condition: string) => `The drug label indicates this medication is contraindicated for: ${condition}`,
         interactionTitle: '⚡ Drug Interaction',
-        interactionMessage: (drug: string) => `This medication may interact with ${drug} that you\'re currently taking`,
+        interactionMessage: (drug: string) => `This medication may interact with ${drug} that you're currently taking`,
         warningTitle: '⚠️ Warning',
         userProfileSource: 'User Health Profile',
         labelSource: 'Drug Label',

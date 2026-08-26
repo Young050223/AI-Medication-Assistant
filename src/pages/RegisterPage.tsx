@@ -142,7 +142,7 @@ export function RegisterPage({ onNavigateToLogin, onRegisterSuccess }: RegisterP
                 setShowEmailModal(true);
             }
         }
-    }, [displayName, email, password, confirmPassword, register, clearError, onRegisterSuccess, t, usernameDuplicate]);
+    }, [displayName, email, password, confirmPassword, isLoading, register, clearError, onRegisterSuccess, t, usernameDuplicate]);
 
     return (
         <div className="register-page">

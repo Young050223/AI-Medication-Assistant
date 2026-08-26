@@ -8,18 +8,22 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 72px;
+  width: 100%;
+  max-width: 100vw;
+  min-height: var(--bottom-nav-height);
+  box-sizing: border-box;
   background: var(--bg-secondary);
   display: flex;
   justify-content: space-around;
   align-items: flex-start;
   padding-top: 8px;
-  padding-left: 24px;
-  padding-right: 24px;
-  padding-bottom: env(safe-area-inset-bottom, 12px);
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border-light);
   z-index: 1000;
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
 }
 
 .nav-item {
@@ -36,6 +40,7 @@
   transition: transform var(--transition-fast);
   position: relative;
   -webkit-tap-highlight-color: transparent;
+  min-width: 0;
 }
 
 .nav-item:active {
@@ -58,6 +63,9 @@
   color: var(--text-muted);
   letter-spacing: -0.2px;
   transition: color var(--transition-fast);
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .nav-item.active .nav-label {
@@ -91,7 +99,7 @@
 
 @media (orientation: landscape) and (max-height: 500px) {
   .bottom-nav-bar {
-    height: 56px;
+    min-height: calc(64px + env(safe-area-inset-bottom, 0px));
     padding-top: 4px;
   }
 

@@ -12,12 +12,14 @@
 html,
 body {
   font-family: var(--font-family);
-  font-size: 16px;
+  font-size: var(--app-root-font-size);
   line-height: 1.5;
   color: var(--text-primary);
   background-color: var(--bg-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: var(--app-text-size-adjust);
+  text-size-adjust: var(--app-text-size-adjust);
   /* iOS: 防止原生 scrollView 移动页面 */
   position: fixed;
   overflow: hidden;

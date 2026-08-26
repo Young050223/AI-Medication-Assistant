@@ -20,8 +20,10 @@ import AgentChatPage from './pages/AgentChatPage';
 import SettingsPage from './pages/SettingsPage';
 import BottomNavBar, { type NavItem } from './components/BottomNavBar';
 import type { ExtractedMedication } from './types/MedicalRecord.types';
+import { prewarmAgentRuntime, prewarmAgentSuggestedQuestions } from './services/agentApi';
 import './i18n';
 import { IconPill } from './components/Icons';
+import { applyFontSizePreset, applyTheme, getStoredFontSizePreset, getStoredThemeMode } from './utils/displayPreferences';
 import './App.css';
 
 // 页面类型
@@ -32,7 +34,7 @@ type PageType = 'login' | 'register' | 'healthProfile' | 'landing'
  * 应用主组件
  */
 function App() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { isLoading, user, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState<PageType>('login');
   const [currentTab, setCurrentTab] = useState<NavItem>('home');
@@ -40,13 +42,12 @@ function App() {
   const [feedbackScheduleId, setFeedbackScheduleId] = useState<string | undefined>();
   const [scheduleAutoAdd, setScheduleAutoAdd] = useState(false);
   const [previousPage, setPreviousPage] = useState<PageType>('landing');
+  const [agentReturnPage, setAgentReturnPage] = useState<PageType>('landing');
 
   // 初始化主题
   useEffect(() => {
-    const saved = localStorage.getItem('theme');
-    if (saved) {
-      document.documentElement.setAttribute('data-theme', saved);
-    }
+    applyTheme(getStoredThemeMode());
+    applyFontSizePreset(getStoredFontSizePreset());
 
     // iOS: 隐藏键盘上方的表单导航栏，禁止自动滚动
     if (Capacitor.isNativePlatform()) {
@@ -54,6 +55,23 @@ function App() {
       Keyboard.setScroll({ isDisabled: true }).catch(() => { });
     }
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    if (currentPage !== 'login' && currentPage !== 'register') return;
+    setCurrentPage('landing');
+    setCurrentTab('home');
+  }, [currentPage, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const language = i18n.language === 'en'
+      ? 'en'
+      : i18n.language === 'zh-TW'
+        ? 'zh-TW'
+        : 'zh-CN';
+    void prewarmAgentRuntime({ language });
+  }, [i18n.language, user]);
 
   const handleLogout = useCallback(async () => {
     await logout();
@@ -66,6 +84,38 @@ function App() {
     setCurrentTab('home');
   }, []);
 
+  const openAgentWithPrewarm = useCallback((sourcePage: PageType = currentPage) => {
+    const language = i18n.language === 'en'
+      ? 'en'
+      : i18n.language === 'zh-TW'
+        ? 'zh-TW'
+        : 'zh-CN';
+
+    void prewarmAgentSuggestedQuestions({ language });
+    void prewarmAgentRuntime({ language });
+    setAgentReturnPage(sourcePage === 'agent' ? 'landing' : sourcePage);
+    setCurrentPage('agent');
+    setCurrentTab('agent');
+  }, [currentPage, i18n.language]);
+
+  const handleAgentBack = useCallback(() => {
+    switch (agentReturnPage) {
+      case 'schedules':
+        setCurrentPage('schedules');
+        setCurrentTab('schedule');
+        break;
+      case 'settings':
+        setCurrentPage('settings');
+        setCurrentTab('me');
+        break;
+      case 'landing':
+      default:
+        setCurrentPage('landing');
+        setCurrentTab('home');
+        break;
+    }
+  }, [agentReturnPage]);
+
   /**
    * 底部导航 Tab 切换
    */
@@ -76,7 +126,7 @@ function App() {
         setCurrentPage('landing');
         break;
       case 'agent':
-        setCurrentPage('agent');
+        openAgentWithPrewarm(currentPage);
         break;
       case 'schedule':
         setScheduleAutoAdd(false);
@@ -86,7 +136,7 @@ function App() {
         setCurrentPage('settings');
         break;
     }
-  }, []);
+  }, [currentPage, openAgentWithPrewarm]);
 
   // 加载中
   if (isLoading) {
@@ -124,7 +174,7 @@ function App() {
   }
 
   // 主 Tab 页面
-  const showBottomNav = ['landing', 'agent', 'schedules', 'settings'].includes(currentPage);
+  const showBottomNav = ['landing', 'schedules', 'settings'].includes(currentPage);
 
   return (
     <div className="app">
@@ -202,8 +252,7 @@ function App() {
             setCurrentTab('schedule');
           }}
           onNavigateToAgentAnalysis={() => {
-            setCurrentPage('agent');
-            setCurrentTab('agent');
+            openAgentWithPrewarm('landing');
           }}
           onNavigateToHealthProfile={() => {
             setPreviousPage('landing');
@@ -220,6 +269,7 @@ function App() {
 
       {currentPage === 'agent' && (
         <AgentChatPage
+          onBack={handleAgentBack}
           onNavigateToUpload={() => {
             setCurrentPage('uploadRecord');
           }}

@@ -1,0 +1,80 @@
+/**
+ * PreDoseInstructionModal.css
+ * 服药前说明确认弹窗样式
+ */
+
+.pre-dose-step {
+    padding-top: 24px;
+}
+
+.pre-dose-title {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 14px;
+}
+
+.pre-dose-card {
+    background: var(--bg-secondary);
+    border: 1.5px solid var(--border-light);
+    border-radius: 14px;
+    padding: 14px;
+}
+
+.pre-dose-label {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.pre-dose-text {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.pre-dose-text.empty {
+    color: var(--text-muted);
+}
+
+.pre-dose-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.pre-dose-back,
+.pre-dose-confirm {
+    flex: 1;
+    padding: 14px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.pre-dose-back {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1.5px solid var(--border-light);
+}
+
+.pre-dose-confirm {
+    background: var(--accent-sage);
+    color: #fff;
+    border: none;
+}
+
+.pre-dose-back:active,
+.pre-dose-confirm:active {
+    transform: scale(0.97);
+}

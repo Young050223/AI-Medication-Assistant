@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../../services/supabase';
+import { vectorizeDocument } from '../../services/agentApi';
 import { useLocalStorage } from '../common/useLocalStorage';
 import { useAuth } from './useAuth';
 import type {
@@ -179,50 +180,9 @@ export function useHealthProfile(): UseHealthProfileReturn {
     }, [user?.id, getItem, loadFromSupabase]);
 
     /**
-     * 保存健康档案（优先Supabase，同时保存本地）
-     */
-    const saveProfile = useCallback(async (data: HealthProfileFormData): Promise<boolean> => {
-        if (!user?.id) {
-            setError('用户未登录');
-            return false;
-        }
-
-        try {
-            setIsSaving(true);
-            setError(null);
-
-            let savedProfile: HealthProfile;
-
-            // 优先尝试Supabase
-            if (isSupabaseConfigured()) {
-                try {
-                    savedProfile = await saveToSupabase(user.id, data, profile?.id);
-                    console.log('[useHealthProfile] Supabase: 健康档案保存成功');
-                } catch (err: any) {
-                    console.warn('[useHealthProfile] Supabase保存失败，降级到本地:', err.message);
-                    // 降级到本地保存
-                    savedProfile = await saveToLocal(user.id, data);
-                }
-            } else {
-                // 直接本地保存
-                savedProfile = await saveToLocal(user.id, data);
-            }
-
-            setProfile(savedProfile);
-            return true;
-        } catch (err: any) {
-            console.error('[useHealthProfile] 保存失败:', err);
-            setError('保存健康档案失败');
-            return false;
-        } finally {
-            setIsSaving(false);
-        }
-    }, [user?.id, profile, saveToSupabase]);
-
-    /**
      * 本地保存（降级方案）
      */
-    const saveToLocal = async (userId: string, data: HealthProfileFormData): Promise<HealthProfile> => {
+    const saveToLocal = useCallback(async (userId: string, data: HealthProfileFormData): Promise<HealthProfile> => {
         const isComplete = !!(
             data.birthDate &&
             data.gender &&
@@ -249,7 +209,76 @@ export function useHealthProfile(): UseHealthProfileReturn {
         console.log('[useHealthProfile] 本地: 健康档案保存成功');
 
         return newProfile;
-    };
+    }, [profile, setItem]);
+
+    /**
+     * 保存健康档案（优先Supabase，同时保存本地）
+     */
+    const saveProfile = useCallback(async (data: HealthProfileFormData): Promise<boolean> => {
+        if (!user?.id) {
+            setError('用户未登录');
+            return false;
+        }
+
+        try {
+            setIsSaving(true);
+            setError(null);
+
+            let savedProfile: HealthProfile;
+
+            // 优先尝试Supabase
+            if (isSupabaseConfigured()) {
+                try {
+                    savedProfile = await saveToSupabase(user.id, data, profile?.id);
+                    console.log('[useHealthProfile] Supabase: 健康档案保存成功');
+
+                    const ragContent = [
+                        savedProfile.gender ? `性别: ${savedProfile.gender}` : '',
+                        savedProfile.birthDate ? `出生日期: ${savedProfile.birthDate}` : '',
+                        savedProfile.heightCm ? `身高: ${savedProfile.heightCm}cm` : '',
+                        savedProfile.weightKg ? `体重: ${savedProfile.weightKg}kg` : '',
+                        savedProfile.medicalHistory ? `病史: ${savedProfile.medicalHistory}` : '',
+                        savedProfile.allergies ? `过敏史: ${savedProfile.allergies}` : '',
+                    ].filter(Boolean).join('\n');
+
+                    if (ragContent.trim()) {
+                        void vectorizeDocument({
+                            userId: user.id,
+                            sourceType: 'health_profile',
+                            sourceId: savedProfile.id,
+                            content: ragContent,
+                            metadata: {
+                                is_complete: savedProfile.isComplete,
+                                updated_at: savedProfile.updatedAt,
+                            },
+                        }).then((result) => {
+                            if (!result.success) {
+                                console.warn('[useHealthProfile] Vectorize failed:', result.error);
+                            }
+                        }).catch((vectorErr) => {
+                            console.warn('[useHealthProfile] Vectorize error:', vectorErr);
+                        });
+                    }
+                } catch (err: any) {
+                    console.warn('[useHealthProfile] Supabase保存失败，降级到本地:', err.message);
+                    // 降级到本地保存
+                    savedProfile = await saveToLocal(user.id, data);
+                }
+            } else {
+                // 直接本地保存
+                savedProfile = await saveToLocal(user.id, data);
+            }
+
+            setProfile(savedProfile);
+            return true;
+        } catch (err: any) {
+            console.error('[useHealthProfile] 保存失败:', err);
+            setError('保存健康档案失败');
+            return false;
+        } finally {
+            setIsSaving(false);
+        }
+    }, [user?.id, profile, saveToSupabase, saveToLocal]);
 
     /**
      * 检查档案是否完整

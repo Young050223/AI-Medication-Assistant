@@ -7,6 +7,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
+import { EMAIL_CONFIRMATION_REQUIRED_MESSAGE, hasUsableAuthSession } from '../utils/authSession';
 import type {
     User,
     AuthState,
@@ -305,17 +306,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     return false;
                 }
 
-                if (data.user) {
-                    // 注册成功，设置用户状态
-                    const user = transformUser(data.user);
+                if (hasUsableAuthSession(data.session)) {
+                    // 注册成功且已获得会话，设置用户状态
+                    const user = transformUser(data.session.user);
                     setState({
                         user,
                         isAuthenticated: true,
                         isLoading: false,
                         error: null,
                     });
-                    console.log('[AuthProvider] 注册成功:', data.user.email);
+                    console.log('[AuthProvider] 注册并登录成功:', data.session.user.email);
                     return true;
+                }
+
+                if (data.user) {
+                    setState({
+                        user: null,
+                        isAuthenticated: false,
+                        isLoading: false,
+                        error: EMAIL_CONFIRMATION_REQUIRED_MESSAGE,
+                    });
+                    return false;
                 }
             }
 

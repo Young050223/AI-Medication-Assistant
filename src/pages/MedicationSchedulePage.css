@@ -248,6 +248,66 @@
     margin: 0 0 12px 0;
 }
 
+.schedule-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 12px;
+}
+
+.schedule-meta-badge {
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.schedule-meta-badge.source-prescription {
+    background: #eef7ff;
+    border-color: #c9e0fb;
+    color: #1f5d9b;
+}
+
+.schedule-meta-badge.source-manual {
+    background: #f6f7f8;
+    border-color: #e4e7ea;
+    color: #516170;
+}
+
+.schedule-meta-badge.source-override {
+    background: #fff7ec;
+    border-color: #f8d6a8;
+    color: #9c5d1a;
+}
+
+.schedule-meta-badge.sync-cloud {
+    background: #eaf7ef;
+    border-color: #c9ead5;
+    color: #1f7a3d;
+}
+
+.schedule-meta-badge.sync-local {
+    background: #f4f4f5;
+    border-color: #e4e4e7;
+    color: #52525b;
+}
+
+.schedule-meta-badge.sync-mixed {
+    background: #fff7ed;
+    border-color: #fed7aa;
+    color: #b45309;
+}
+
+.schedule-meta-badge.sync-migrating {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+}
+
 /* Reminder row */
 .reminder-list {
     display: flex;
@@ -663,5 +723,43 @@
 
 /* ===== Nav Spacer ===== */
 .nav-spacer {
-    height: 72px;
+    height: var(--bottom-nav-height);
+}
+
+.schedule-sync-banner {
+    margin: 0 20px 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.schedule-sync-banner.cloud {
+    background: #eaf7ef;
+    color: #1f7a3d;
+}
+
+.schedule-sync-banner.local {
+    background: #f4f4f5;
+    color: #52525b;
+}
+
+.schedule-sync-banner.mixed {
+    background: #fff7ed;
+    color: #b45309;
+}
+
+.schedule-sync-banner.migrating {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.schedule-sync-banner .sync-time {
+    font-weight: 500;
+    opacity: 0.9;
+    white-space: nowrap;
 }

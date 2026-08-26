@@ -9,6 +9,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../user/useAuth';
 import { formatLocalDateKey, normalizeDateKey } from '../../utils/dateKey';
+import { supabase, isSupabaseConfigured } from '../../services/supabase';
+import { vectorizeDocument } from '../../services/agentApi';
 
 // ===================== 类型定义 =====================
 
@@ -28,6 +30,7 @@ export interface MedicationSchedule {
     medicationDosage: string;
     frequency: string;
     instructions?: string;
+    sourceRecordId?: string;
     allowWindowMinutes?: number;
     /** 按日期的覆盖配置（仅当天生效） */
     dateOverrides?: Record<string, ScheduleOverride>;
@@ -71,6 +74,8 @@ export interface UseMedicationScheduleReturn {
     schedules: MedicationSchedule[];
     takenRecords: TakenRecords;
     anchorDate: string | null;
+    syncState: 'cloud' | 'local' | 'mixed' | 'migrating';
+    lastSyncedAt: string | null;
     isLoading: boolean;
     isSaving: boolean;
     error: string | null;
@@ -93,6 +98,10 @@ export interface UseMedicationScheduleReturn {
 const STORAGE_KEY_PREFIX = 'medication_schedules';
 const TAKEN_KEY_PREFIX = 'medication_taken';
 const ANCHOR_KEY_PREFIX = 'medication_anchor_date';
+const CLOUD_MIGRATION_MARKER_PREFIX = 'medication_cloud_migrated';
+const CLOUD_LOG_LOOKBACK_DAYS = 120;
+export const MEDICATION_SCHEDULES_INVALIDATED_EVENT = 'medication-schedules:invalidate';
+const SCHEDULE_SELECT_COLUMNS = 'id, user_id, medication_name, medication_dosage, instructions, frequency, reminders, status, start_date, end_date, source_record_id, allow_window_minutes, date_overrides, created_at, updated_at';
 const FREQUENCY_KEYS = ['onceDaily', 'twiceDaily', 'thriceDaily', 'fourTimesDaily', 'asNeeded'] as const;
 const FREQUENCY_TEXT_TO_KEY: Record<string, string> = {
     '每日1次': 'onceDaily',
@@ -181,6 +190,233 @@ const deriveAnchorDate = (items: MedicationSchedule[]): string | null => {
     return candidateDates.sort()[0];
 };
 
+type MedicationScheduleRow = {
+    id: string;
+    user_id: string;
+    medication_name: string;
+    medication_dosage: string | null;
+    instructions: string | null;
+    frequency: string | null;
+    reminders: unknown;
+    status: string | null;
+    start_date: string;
+    end_date: string | null;
+    source_record_id: string | null;
+    allow_window_minutes?: number | null;
+    date_overrides?: Record<string, ScheduleOverride> | null;
+    effective_status?: string | null;
+    is_current?: boolean | null;
+    created_at: string;
+    updated_at: string;
+};
+
+type MedicationLogRow = {
+    schedule_id: string | null;
+    reminder_id?: string | null;
+    scheduled_date: string;
+    status: string;
+    taken_at: string | null;
+};
+
+const toReminderArray = (
+    raw: unknown,
+    fallbackDosage: string,
+    scheduleId: string
+): MedicationReminder[] => {
+    if (!Array.isArray(raw)) return [];
+
+    return raw
+        .filter((item): item is { id?: string; time?: string; dosage?: string } =>
+            !!item && typeof item === 'object'
+        )
+        .map((item, index) => {
+            const time = typeof item.time === 'string' ? item.time : '';
+            return {
+                id: typeof item.id === 'string' && item.id.length > 0
+                    ? item.id
+                    : `${scheduleId}-template-${time || '00:00'}-${index}`,
+                time: time || '00:00',
+                dosage: typeof item.dosage === 'string' && item.dosage.length > 0
+                    ? item.dosage
+                    : fallbackDosage,
+                taken: false,
+                missed: false,
+            };
+        })
+        .sort((a, b) => a.time.localeCompare(b.time));
+};
+
+const mapRowToSchedule = (row: MedicationScheduleRow): MedicationSchedule => {
+    const fallbackDosage = row.medication_dosage || '';
+    const reminders = toReminderArray(row.reminders, fallbackDosage, row.id);
+    const currentDateKey = todayKey();
+    const normalizedStartDate = normalizeDateKey(row.start_date) || row.start_date;
+    const normalizedEndDate = row.end_date
+        ? (normalizeDateKey(row.end_date) || row.end_date)
+        : null;
+    const effectiveIsCurrent = typeof row.is_current === 'boolean'
+        ? row.is_current
+        : ((row.status === 'active' || row.status === null)
+            && normalizedStartDate <= currentDateKey
+            && (!normalizedEndDate || normalizedEndDate >= currentDateKey));
+
+    return {
+        id: row.id,
+        medicationName: row.medication_name,
+        medicationDosage: fallbackDosage,
+        frequency: normalizeFrequency(row.frequency || 'onceDaily'),
+        instructions: row.instructions || '',
+        sourceRecordId: row.source_record_id || undefined,
+        reminders,
+        isActive: effectiveIsCurrent,
+        startDate: row.start_date,
+        endDate: row.end_date || undefined,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        allowWindowMinutes: row.allow_window_minutes ?? undefined,
+        graceMinutes: row.allow_window_minutes ?? undefined,
+        dateOverrides: row.date_overrides || {},
+    };
+};
+
+const mapScheduleFields = (schedule: MedicationSchedule) => ({
+    medication_name: schedule.medicationName,
+    medication_dosage: schedule.medicationDosage || null,
+    instructions: schedule.instructions || null,
+    frequency: normalizeFrequency(schedule.frequency),
+    reminders: schedule.reminders.map((reminder) => ({
+        id: reminder.id,
+        time: reminder.time,
+        dosage: reminder.dosage,
+    })),
+    status: schedule.isActive ? 'active' : 'paused',
+    start_date: normalizeDateKey(schedule.startDate) || todayKey(),
+    end_date: schedule.endDate ? (normalizeDateKey(schedule.endDate) || schedule.endDate) : null,
+    source_record_id: schedule.sourceRecordId || null,
+    allow_window_minutes: schedule.allowWindowMinutes ?? schedule.graceMinutes ?? null,
+    date_overrides: schedule.dateOverrides || {},
+});
+
+const mapScheduleToDbInsertPayload = (schedule: MedicationSchedule, userId: string) => ({
+    id: schedule.id,
+    user_id: userId,
+    ...mapScheduleFields(schedule),
+});
+
+const mapScheduleToDbUpdatePayload = (schedule: MedicationSchedule) => ({
+    ...mapScheduleFields(schedule),
+});
+
+const buildScheduleRagContent = (schedule: MedicationSchedule): string => {
+    const reminderTimes = schedule.reminders
+        .map((item) => item.time)
+        .filter(Boolean)
+        .join(', ');
+
+    return [
+        `药物: ${schedule.medicationName}`,
+        schedule.medicationDosage ? `剂量: ${schedule.medicationDosage}` : '',
+        schedule.frequency ? `频率: ${schedule.frequency}` : '',
+        schedule.instructions ? `说明: ${schedule.instructions}` : '',
+        `开始日期: ${schedule.startDate}`,
+        schedule.endDate ? `结束日期: ${schedule.endDate}` : '结束日期: 未设置',
+        reminderTimes ? `提醒时间: ${reminderTimes}` : '',
+        schedule.allowWindowMinutes || schedule.graceMinutes
+            ? `确认窗口(分钟): ${schedule.allowWindowMinutes ?? schedule.graceMinutes}`
+            : '',
+    ].filter(Boolean).join('\n');
+};
+
+const buildTakenRecordsFromLogs = (logs: MedicationLogRow[]): TakenRecords => {
+    const records: TakenRecords = {};
+
+    logs.forEach((log) => {
+        if (!log.reminder_id || !log.scheduled_date) return;
+        const dateKey = normalizeDateKey(log.scheduled_date) || log.scheduled_date;
+        if (!records[dateKey]) records[dateKey] = {};
+
+        records[dateKey][log.reminder_id] = {
+            taken: log.status === 'taken' || log.status === 'late' || !!log.taken_at,
+            takenAt: log.taken_at || undefined,
+            missed: log.status === 'skipped',
+        };
+    });
+
+    return records;
+};
+
+const chunkArray = <T,>(items: T[], chunkSize: number): T[][] => {
+    if (chunkSize <= 0) return [items];
+    const chunks: T[][] = [];
+    for (let i = 0; i < items.length; i += chunkSize) {
+        chunks.push(items.slice(i, i + chunkSize));
+    }
+    return chunks;
+};
+
+const normalizeReminderForMigration = (
+    value: unknown,
+    scheduleId: string,
+    fallbackDosage: string,
+    index: number
+): MedicationReminder | null => {
+    if (!value || typeof value !== 'object') return null;
+    const record = value as Record<string, unknown>;
+    const time = typeof record.time === 'string' && record.time.length > 0
+        ? record.time
+        : '00:00';
+    const dosage = typeof record.dosage === 'string' && record.dosage.length > 0
+        ? record.dosage
+        : fallbackDosage;
+    const id = typeof record.id === 'string' && record.id.length > 0
+        ? record.id
+        : `${scheduleId}-template-${time}-${index}`;
+    return {
+        id,
+        time,
+        dosage,
+        taken: false,
+        missed: false,
+    };
+};
+
+const normalizeLocalScheduleForMigration = (value: unknown): MedicationSchedule | null => {
+    if (!value || typeof value !== 'object') return null;
+    const row = value as Record<string, unknown>;
+
+    const id = typeof row.id === 'string' && row.id.length > 0 ? row.id : crypto.randomUUID();
+    const medicationName = typeof row.medicationName === 'string' ? row.medicationName.trim() : '';
+    if (!medicationName) return null;
+
+    const medicationDosage = typeof row.medicationDosage === 'string' ? row.medicationDosage : '';
+    const rawReminders = Array.isArray(row.reminders) ? row.reminders : [];
+    const reminders = rawReminders
+        .map((reminder, index) => normalizeReminderForMigration(reminder, id, medicationDosage, index))
+        .filter((reminder): reminder is MedicationReminder => !!reminder);
+
+    return {
+        id,
+        medicationName,
+        medicationDosage,
+        frequency: normalizeFrequency(typeof row.frequency === 'string' ? row.frequency : 'onceDaily'),
+        instructions: typeof row.instructions === 'string' ? row.instructions : '',
+        sourceRecordId: typeof row.sourceRecordId === 'string'
+            ? row.sourceRecordId
+            : (typeof row.source_record_id === 'string' ? row.source_record_id : undefined),
+        allowWindowMinutes: typeof row.allowWindowMinutes === 'number' ? row.allowWindowMinutes : undefined,
+        dateOverrides: (row.dateOverrides && typeof row.dateOverrides === 'object')
+            ? row.dateOverrides as Record<string, ScheduleOverride>
+            : {},
+        startDate: normalizeDateKey(typeof row.startDate === 'string' ? row.startDate : '') || todayKey(),
+        endDate: normalizeDateKey(typeof row.endDate === 'string' ? row.endDate : '') || undefined,
+        reminders,
+        isActive: row.isActive !== false,
+        createdAt: typeof row.createdAt === 'string' ? row.createdAt : new Date().toISOString(),
+        updatedAt: typeof row.updatedAt === 'string' ? row.updatedAt : new Date().toISOString(),
+        graceMinutes: typeof row.graceMinutes === 'number' ? row.graceMinutes : undefined,
+    };
+};
+
 // ===================== Hook =====================
 
 /**
@@ -191,6 +427,7 @@ const deriveAnchorDate = (items: MedicationSchedule[]): string | null => {
 export function useMedicationSchedule(): UseMedicationScheduleReturn {
     const { user } = useAuth();
     const userId = user?.id;
+    const cloudEnabled = useMemo(() => Boolean(userId) && isSupabaseConfigured(), [userId]);
     const storageKey = useMemo(
         () => userId ? `${STORAGE_KEY_PREFIX}_${userId}` : null,
         [userId]
@@ -203,10 +440,16 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         () => userId ? `${ANCHOR_KEY_PREFIX}_${userId}` : null,
         [userId]
     );
+    const cloudMigrationMarkerKey = useMemo(
+        () => userId ? `${CLOUD_MIGRATION_MARKER_PREFIX}_${userId}` : null,
+        [userId]
+    );
 
     const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
     const [takenRecords, setTakenRecords] = useState<TakenRecords>({});
     const [anchorDate, setAnchorDateState] = useState<string | null>(null);
+    const [syncState, setSyncState] = useState<'cloud' | 'local' | 'mixed' | 'migrating'>('local');
+    const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -270,6 +513,134 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         };
     }, [getReminderRecord]);
 
+    const migrateLocalDataToCloudIfNeeded = useCallback(async (): Promise<void> => {
+        if (!cloudEnabled || !userId || !storageKey || !takenKey || !cloudMigrationMarkerKey) return;
+        if (localStorage.getItem(cloudMigrationMarkerKey) === 'done') return;
+
+        const localScheduleRaw = localStorage.getItem(storageKey);
+        const localTakenRaw = localStorage.getItem(takenKey);
+        if (!localScheduleRaw && !localTakenRaw) {
+            localStorage.setItem(cloudMigrationMarkerKey, 'done');
+            return;
+        }
+
+        let localSchedules: MedicationSchedule[] = [];
+        let localTakenRecords: TakenRecords = {};
+
+        try {
+            const parsed = localScheduleRaw ? JSON.parse(localScheduleRaw) : [];
+            localSchedules = Array.isArray(parsed)
+                ? parsed
+                    .map((item) => normalizeLocalScheduleForMigration(item))
+                    .filter((item): item is MedicationSchedule => !!item)
+                : [];
+        } catch (parseError) {
+            console.warn('[useMedicationSchedule] local schedule parse failed in migration:', parseError);
+        }
+
+        try {
+            const parsedTaken = localTakenRaw ? JSON.parse(localTakenRaw) : {};
+            localTakenRecords = parsedTaken && typeof parsedTaken === 'object' ? parsedTaken as TakenRecords : {};
+        } catch (parseError) {
+            console.warn('[useMedicationSchedule] local taken parse failed in migration:', parseError);
+        }
+
+        if (localSchedules.length === 0 && Object.keys(localTakenRecords).length === 0) {
+            localStorage.setItem(cloudMigrationMarkerKey, 'done');
+            return;
+        }
+
+        if (localSchedules.length > 0) {
+            const schedulePayload = localSchedules.map((schedule) => mapScheduleToDbInsertPayload(schedule, userId));
+            const { error: scheduleUpsertError } = await supabase
+                .from('medication_schedules')
+                .upsert(schedulePayload, { onConflict: 'id' });
+
+            if (scheduleUpsertError) {
+                throw new Error(`migrate medication_schedules failed: ${scheduleUpsertError.message}`);
+            }
+        }
+
+        const reminderLookup = new Map<string, {
+            scheduleId: string;
+            medicationName: string;
+            dosage: string;
+            time: string;
+        }>();
+        localSchedules.forEach((schedule) => {
+            schedule.reminders.forEach((reminder) => {
+                reminderLookup.set(reminder.id, {
+                    scheduleId: schedule.id,
+                    medicationName: schedule.medicationName,
+                    dosage: reminder.dosage || schedule.medicationDosage || '',
+                    time: reminder.time || '00:00',
+                });
+            });
+        });
+
+        const logPayload: Array<{
+            user_id: string;
+            schedule_id: string;
+            reminder_id: string;
+            medication_name: string;
+            dosage: string | null;
+            scheduled_time: string;
+            scheduled_date: string;
+            taken_at: string | null;
+            status: 'taken' | 'skipped';
+            confirmed_by: 'manual';
+        }> = [];
+
+        Object.entries(localTakenRecords).forEach(([dateKey, reminders]) => {
+            const normalizedDate = normalizeDateKey(dateKey) || dateKey;
+            if (!reminders || typeof reminders !== 'object') return;
+
+            Object.entries(reminders).forEach(([reminderId, record]) => {
+                if (!record || typeof record !== 'object') return;
+                const taken = !!record.taken;
+                const missed = !!record.missed;
+                if (!taken && !missed) return;
+
+                const lookup = reminderLookup.get(reminderId);
+                if (!lookup) return;
+
+                const normalizedTime = lookup.time && lookup.time.length === 5
+                    ? `${lookup.time}:00`
+                    : (lookup.time || '00:00:00');
+
+                logPayload.push({
+                    user_id: userId,
+                    schedule_id: lookup.scheduleId,
+                    reminder_id: reminderId,
+                    medication_name: lookup.medicationName,
+                    dosage: lookup.dosage || null,
+                    scheduled_time: normalizedTime,
+                    scheduled_date: normalizedDate,
+                    taken_at: taken ? (record.takenAt || new Date(`${normalizedDate}T00:00:00.000Z`).toISOString()) : null,
+                    status: taken ? 'taken' : 'skipped',
+                    confirmed_by: 'manual',
+                });
+            });
+        });
+
+        if (logPayload.length > 0) {
+            const chunks = chunkArray(logPayload, 300);
+            for (const chunk of chunks) {
+                const { error: logUpsertError } = await supabase
+                    .from('medication_logs')
+                    .upsert(chunk, {
+                        onConflict: 'user_id,schedule_id,scheduled_date,reminder_id',
+                    });
+                if (logUpsertError) {
+                    throw new Error(`migrate medication_logs failed: ${logUpsertError.message}`);
+                }
+            }
+        }
+
+        localStorage.setItem(cloudMigrationMarkerKey, 'done');
+        console.log('[useMedicationSchedule] local data migrated to cloud');
+    }, [cloudEnabled, userId, storageKey, takenKey, cloudMigrationMarkerKey]);
+
     // ---- Load ----
 
     const loadSchedules = useCallback(async () => {
@@ -277,6 +648,8 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
             setSchedules([]);
             setTakenRecords({});
             setAnchorDateState(null);
+            setSyncState('local');
+            setLastSyncedAt(null);
             setIsLoading(false);
             return;
         }
@@ -285,70 +658,140 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         setError(null);
 
         try {
-            // Load schedules
-            const stored = localStorage.getItem(storageKey);
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                const migrated = Array.isArray(parsed)
-                    ? parsed.map((schedule: MedicationSchedule) => ({
-                        ...schedule,
-                        frequency: normalizeFrequency(schedule.frequency),
-                    }))
-                    : [];
-                setSchedules(migrated);
+            if (cloudEnabled && userId) {
+                try {
+                    setSyncState('migrating');
+                    await migrateLocalDataToCloudIfNeeded();
+                } catch (migrationError) {
+                    console.warn('[useMedicationSchedule] local->cloud migration failed, continue with normal load:', migrationError);
+                    setError('本地数据迁移到云端失败，已继续加载现有数据');
+                    setSyncState('mixed');
+                }
 
-                // Migration: move old reminder.taken into takenRecords
-                const storedTaken = localStorage.getItem(takenKey);
-                let taken: TakenRecords = storedTaken ? JSON.parse(storedTaken) : {};
-                let migrationNeeded = false;
+                const { data: projectedRows, error: projectionError } = await supabase
+                    .rpc('get_medication_schedule_projection', {
+                        target_user_id: userId,
+                        as_of_date: todayKey(),
+                    });
 
-                for (const schedule of migrated) {
-                    for (const reminder of schedule.reminders) {
-                        if (reminder.taken) {
-                            // Determine which date this was taken on
-                            const takenDate = reminder.takenAt
-                                ? (normalizeDateKey(reminder.takenAt) || todayKey())
-                                : todayKey(); // fallback if no takenAt
-                            if (!taken[takenDate]) taken[takenDate] = {};
-                            if (!taken[takenDate][reminder.id]) {
-                                taken[takenDate][reminder.id] = {
-                                    taken: true,
-                                    takenAt: reminder.takenAt || new Date().toISOString(),
-                                };
-                                migrationNeeded = true;
-                            }
-                            // Clear old taken flag on reminder
-                            reminder.taken = false;
-                            reminder.takenAt = undefined;
-                        }
+                const { data: cloudRows, error: cloudError } = projectionError
+                    ? await supabase
+                        .from('medication_schedules')
+                        .select(SCHEDULE_SELECT_COLUMNS)
+                        .eq('user_id', userId)
+                        .order('updated_at', { ascending: false })
+                    : { data: projectedRows, error: null };
+
+                if (!cloudError && Array.isArray(cloudRows)) {
+                    const mapped = cloudRows.map((row) => mapRowToSchedule(row as MedicationScheduleRow));
+                    setSchedules(mapped);
+                    localStorage.setItem(storageKey, JSON.stringify(mapped));
+
+                    const sinceDate = new Date();
+                    sinceDate.setDate(sinceDate.getDate() - CLOUD_LOG_LOOKBACK_DAYS);
+                    const sinceDateKey = formatLocalDateKey(sinceDate);
+
+                    const { data: cloudLogs, error: logError } = await supabase
+                        .from('medication_logs')
+                        .select('schedule_id, reminder_id, scheduled_date, status, taken_at')
+                        .eq('user_id', userId)
+                        .gte('scheduled_date', sinceDateKey)
+                        .in('status', ['taken', 'late', 'skipped'])
+                        .order('scheduled_date', { ascending: false })
+                        .limit(5000);
+
+                    if (logError) {
+                        console.warn('[useMedicationSchedule] cloud logs load failed:', logError.message);
                     }
+
+                    const cloudTaken = buildTakenRecordsFromLogs((cloudLogs || []) as MedicationLogRow[]);
+                    setTakenRecords(cloudTaken);
+                    localStorage.setItem(takenKey, JSON.stringify(cloudTaken));
+                    setSyncState('cloud');
+                    setLastSyncedAt(new Date().toISOString());
+
+                    const storedAnchor = normalizeDateKey(localStorage.getItem(anchorKey));
+                    const derivedAnchor = deriveAnchorDate(mapped) || todayKey();
+                    saveAnchorDate(storedAnchor || derivedAnchor);
+                    return;
                 }
 
-                if (migrationNeeded) {
-                    localStorage.setItem(storageKey, JSON.stringify(migrated));
-                    localStorage.setItem(takenKey, JSON.stringify(taken));
+                if (cloudError) {
+                    console.warn('[useMedicationSchedule] cloud schedules load failed, fallback local:', cloudError.message);
+                    setSyncState('mixed');
                 }
+            }
 
-                setTakenRecords(taken);
-                const storedAnchor = normalizeDateKey(localStorage.getItem(anchorKey));
-                const derivedAnchor = deriveAnchorDate(migrated) || todayKey();
-                const resolvedAnchor = storedAnchor || derivedAnchor;
-                saveAnchorDate(resolvedAnchor);
-            } else {
+            const stored = localStorage.getItem(storageKey);
+            if (!stored) {
                 setSchedules([]);
-                // Still load taken records
                 const storedTaken = localStorage.getItem(takenKey);
                 setTakenRecords(storedTaken ? JSON.parse(storedTaken) : {});
                 const storedAnchor = normalizeDateKey(localStorage.getItem(anchorKey));
                 saveAnchorDate(storedAnchor || todayKey());
+                if (!cloudEnabled) {
+                    setSyncState('local');
+                    setLastSyncedAt(null);
+                }
+                return;
+            }
+
+            const parsed = JSON.parse(stored);
+            const migrated = Array.isArray(parsed)
+                ? parsed.map((schedule: MedicationSchedule) => ({
+                    ...schedule,
+                    frequency: normalizeFrequency(schedule.frequency),
+                }))
+                : [];
+            setSchedules(migrated);
+
+            const storedTaken = localStorage.getItem(takenKey);
+            const taken: TakenRecords = storedTaken ? JSON.parse(storedTaken) : {};
+            let migrationNeeded = false;
+
+            for (const schedule of migrated) {
+                for (const reminder of schedule.reminders) {
+                    if (!reminder.taken) continue;
+
+                    const takenDate = reminder.takenAt
+                        ? (normalizeDateKey(reminder.takenAt) || todayKey())
+                        : todayKey();
+                    if (!taken[takenDate]) taken[takenDate] = {};
+                    if (!taken[takenDate][reminder.id]) {
+                        taken[takenDate][reminder.id] = {
+                            taken: true,
+                            takenAt: reminder.takenAt || new Date().toISOString(),
+                        };
+                        migrationNeeded = true;
+                    }
+                    reminder.taken = false;
+                    reminder.takenAt = undefined;
+                }
+            }
+
+            if (migrationNeeded) {
+                localStorage.setItem(storageKey, JSON.stringify(migrated));
+                localStorage.setItem(takenKey, JSON.stringify(taken));
+            }
+
+            setTakenRecords(taken);
+            const storedAnchor = normalizeDateKey(localStorage.getItem(anchorKey));
+            const derivedAnchor = deriveAnchorDate(migrated) || todayKey();
+            saveAnchorDate(storedAnchor || derivedAnchor);
+            if (!cloudEnabled) {
+                setSyncState('local');
+                setLastSyncedAt(null);
             }
         } catch (err) {
             console.error('[useMedicationSchedule] Load error:', err);
             setError('加载服药计划失败');
+            if (cloudEnabled) {
+                setSyncState('mixed');
+            }
         } finally {
             setIsLoading(false);
         }
-    }, [storageKey, takenKey, anchorKey, saveAnchorDate]);
+    }, [storageKey, takenKey, anchorKey, saveAnchorDate, cloudEnabled, userId, migrateLocalDataToCloudIfNeeded]);
 
     // ---- Save helpers ----
 
@@ -364,11 +807,40 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         setTakenRecords(newRecords);
     }, [takenKey]);
 
+    const vectorizeSchedule = useCallback((schedule: MedicationSchedule) => {
+        if (!cloudEnabled || !userId) return;
+        const content = buildScheduleRagContent(schedule);
+        if (!content.trim()) return;
+
+        void vectorizeDocument({
+            userId,
+            sourceType: 'medication_schedule',
+            sourceId: schedule.id,
+            content,
+            metadata: {
+                medication_name: schedule.medicationName,
+                frequency: schedule.frequency,
+                start_date: schedule.startDate,
+                end_date: schedule.endDate || null,
+                is_active: schedule.isActive,
+                reminder_count: schedule.reminders.length,
+                allow_window_minutes: schedule.allowWindowMinutes ?? schedule.graceMinutes ?? null,
+            },
+        }).then((result) => {
+            if (!result.success) {
+                console.warn('[useMedicationSchedule] schedule vectorize failed:', result.error);
+            }
+        }).catch((vectorErr) => {
+            console.warn('[useMedicationSchedule] schedule vectorize error:', vectorErr);
+        });
+    }, [cloudEnabled, userId]);
+
     // ---- CRUD ----
 
     const addSchedule = useCallback(async (
         schedule: Omit<MedicationSchedule, 'id' | 'createdAt' | 'updatedAt'>
     ) => {
+        setError(null);
         const normalizedStartDate = normalizeDateKey(schedule.startDate) || todayKey();
         const newSchedule: MedicationSchedule = {
             ...schedule,
@@ -379,46 +851,176 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
             updatedAt: new Date().toISOString(),
         };
 
+        if (cloudEnabled && userId) {
+            const { data: inserted, error: insertError } = await supabase
+                .from('medication_schedules')
+                .insert(mapScheduleToDbInsertPayload(newSchedule, userId))
+                .select(SCHEDULE_SELECT_COLUMNS)
+                .single();
+
+            if (insertError) {
+                console.warn('[useMedicationSchedule] cloud insert failed, fallback local:', insertError.message);
+                setError('云端保存失败，已保存在本地缓存');
+                setSyncState('mixed');
+            } else if (inserted) {
+                const savedSchedule = mapRowToSchedule(inserted as MedicationScheduleRow);
+                saveSchedules([...schedules, savedSchedule]);
+                if (!anchorDate) {
+                    saveAnchorDate(normalizedStartDate);
+                }
+                vectorizeSchedule(savedSchedule);
+                setSyncState('cloud');
+                setLastSyncedAt(new Date().toISOString());
+                return;
+            }
+        }
+
         saveSchedules([...schedules, newSchedule]);
         if (!anchorDate) {
             saveAnchorDate(normalizedStartDate);
         }
-    }, [schedules, saveSchedules, anchorDate, saveAnchorDate]);
+    }, [schedules, saveSchedules, anchorDate, saveAnchorDate, cloudEnabled, userId, vectorizeSchedule]);
 
     const updateSchedule = useCallback(async (id: string, updates: Partial<MedicationSchedule>) => {
+        setError(null);
         console.log('[updateSchedule] id=', id, 'updates=', JSON.stringify(updates).substring(0, 500));
+        const existing = schedules.find((schedule) => schedule.id === id);
+        if (!existing) return;
+
         const normalizedUpdates: Partial<MedicationSchedule> = {
             ...updates,
             ...(updates.frequency ? { frequency: normalizeFrequency(updates.frequency) } : {}),
             ...(updates.startDate ? { startDate: normalizeDateKey(updates.startDate) || updates.startDate } : {}),
             ...(updates.endDate ? { endDate: normalizeDateKey(updates.endDate) || updates.endDate } : {}),
         };
+
+        const merged: MedicationSchedule = {
+            ...existing,
+            ...normalizedUpdates,
+            frequency: normalizeFrequency(normalizedUpdates.frequency || existing.frequency),
+            updatedAt: new Date().toISOString(),
+        };
+
         const updated = schedules.map(s =>
             s.id === id
-                ? { ...s, ...normalizedUpdates, updatedAt: new Date().toISOString() }
+                ? merged
                 : s
         );
-        const target = updated.find(s => s.id === id);
-        console.log('[updateSchedule] AFTER merge schedule=', JSON.stringify(target).substring(0, 500));
-        console.log('[updateSchedule] dateOverrides keys=', target?.dateOverrides ? Object.keys(target.dateOverrides) : 'none');
+
+        if (cloudEnabled && userId) {
+            const { data: cloudRow, error: updateError } = await supabase
+                .from('medication_schedules')
+                .update(mapScheduleToDbUpdatePayload(merged))
+                .eq('id', id)
+                .eq('user_id', userId)
+                .select(SCHEDULE_SELECT_COLUMNS)
+                .single();
+
+            if (updateError) {
+                console.warn('[useMedicationSchedule] cloud update failed, fallback local:', updateError.message);
+                setError('云端更新失败，已更新本地缓存');
+                setSyncState('mixed');
+            } else if (cloudRow) {
+                const mapped = mapRowToSchedule(cloudRow as MedicationScheduleRow);
+                const cloudUpdated = schedules.map(s => (s.id === id ? mapped : s));
+                saveSchedules(cloudUpdated);
+                if (normalizedUpdates.startDate) {
+                    saveAnchorDate(normalizedUpdates.startDate);
+                }
+                vectorizeSchedule(mapped);
+                setSyncState('cloud');
+                setLastSyncedAt(new Date().toISOString());
+                return;
+            }
+        }
+
         saveSchedules(updated);
         if (normalizedUpdates.startDate) {
             saveAnchorDate(normalizedUpdates.startDate);
         }
-    }, [schedules, saveSchedules, saveAnchorDate]);
+    }, [schedules, saveSchedules, saveAnchorDate, cloudEnabled, userId, vectorizeSchedule]);
 
     const deleteSchedule = useCallback(async (id: string) => {
+        setError(null);
+        if (cloudEnabled && userId) {
+            const { error: deleteError } = await supabase
+                .from('medication_schedules')
+                .delete()
+                .eq('id', id)
+                .eq('user_id', userId);
+
+            if (deleteError) {
+                console.warn('[useMedicationSchedule] cloud delete failed:', deleteError.message);
+                setError('删除失败，请稍后重试');
+                setSyncState('mixed');
+                return;
+            }
+
+            setSyncState('cloud');
+            setLastSyncedAt(new Date().toISOString());
+        }
+
         const filtered = schedules.filter(s => s.id !== id);
         saveSchedules(filtered);
-    }, [schedules, saveSchedules]);
+    }, [schedules, saveSchedules, cloudEnabled, userId]);
+
+    const syncMedicationLog = useCallback(async (params: {
+        scheduleId: string;
+        reminderId: string;
+        dateKey: string;
+        status: 'taken' | 'skipped';
+        takenAt?: string;
+    }) => {
+        if (!cloudEnabled || !userId) return;
+
+        const { scheduleId, reminderId, dateKey, status, takenAt } = params;
+        const baseSchedule = schedules.find((schedule) => schedule.id === scheduleId);
+        if (!baseSchedule) return;
+
+        const scheduleForDate = buildScheduleForDate(baseSchedule, dateKey);
+        const reminder = scheduleForDate.reminders.find((item) => item.id === reminderId)
+            || baseSchedule.reminders.find((item) => item.id === reminderId);
+
+        const reminderTime = reminder?.time || '00:00';
+        const scheduledTime = reminderTime.length === 5 ? `${reminderTime}:00` : reminderTime;
+        const takenTimestamp = takenAt || new Date().toISOString();
+
+        const { error: logError } = await supabase
+            .from('medication_logs')
+            .upsert({
+                user_id: userId,
+                schedule_id: scheduleId,
+                reminder_id: reminderId,
+                medication_name: scheduleForDate.medicationName,
+                dosage: reminder?.dosage || scheduleForDate.medicationDosage || null,
+                scheduled_time: scheduledTime,
+                scheduled_date: dateKey,
+                taken_at: status === 'taken' ? takenTimestamp : null,
+                status,
+                confirmed_by: 'manual',
+            }, {
+                onConflict: 'user_id,schedule_id,scheduled_date,reminder_id',
+            });
+
+        if (logError) {
+            console.warn('[useMedicationSchedule] medication_logs upsert failed:', logError.message);
+            setError('服药记录云端同步失败，已保存在本地缓存');
+            setSyncState('mixed');
+            return;
+        }
+        setSyncState('cloud');
+        setLastSyncedAt(new Date().toISOString());
+    }, [cloudEnabled, userId, schedules, buildScheduleForDate]);
 
     // ---- Taken tracking (per-date) ----
 
     const markAsTaken = useCallback(async (scheduleId: string, reminderId: string, date?: string) => {
         const dateKey = date || todayKey();
-        const schedule = schedules.find(item => item.id === scheduleId);
+        const baseSchedule = schedules.find(item => item.id === scheduleId);
+        if (!baseSchedule) return;
+        const schedule = buildScheduleForDate(baseSchedule, dateKey);
         const latestTakenTs = getLatestTakenTimestamp(takenRecords, reminderId);
-        const minimumInterval = schedule ? getMinimumDoseIntervalMinutes(schedule) : 24 * 60;
+        const minimumInterval = getMinimumDoseIntervalMinutes(schedule);
         const requiredGapMinutes = Math.max(60, Math.floor(minimumInterval * 0.8));
         const nowTs = Date.now();
         const localToday = todayKey();
@@ -433,25 +1035,40 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         }
 
         setError(null);
+        const takenAt = new Date().toISOString();
         const newRecords = { ...takenRecords };
         const dateRecords = { ...(newRecords[dateKey] || {}) };
         dateRecords[reminderId] = {
             taken: true,
-            takenAt: new Date().toISOString(),
+            takenAt,
             missed: false,
         };
         newRecords[dateKey] = dateRecords;
         saveTakenRecords(newRecords);
-    }, [takenRecords, saveTakenRecords, schedules]);
+        await syncMedicationLog({
+            scheduleId,
+            reminderId,
+            dateKey,
+            status: 'taken',
+            takenAt,
+        });
+    }, [takenRecords, saveTakenRecords, schedules, buildScheduleForDate, syncMedicationLog]);
 
-    const markAsMissed = useCallback(async (_scheduleId: string, reminderId: string, date?: string) => {
+    const markAsMissed = useCallback(async (scheduleId: string, reminderId: string, date?: string) => {
+        setError(null);
         const dateKey = date || todayKey();
         const newRecords = { ...takenRecords };
         const dateRecords = { ...(newRecords[dateKey] || {}) };
         dateRecords[reminderId] = { taken: false, missed: true };
         newRecords[dateKey] = dateRecords;
         saveTakenRecords(newRecords);
-    }, [takenRecords, saveTakenRecords]);
+        await syncMedicationLog({
+            scheduleId,
+            reminderId,
+            dateKey,
+            status: 'skipped',
+        });
+    }, [takenRecords, saveTakenRecords, syncMedicationLog]);
 
     const isReminderTaken = useCallback((reminderId: string, date?: string): boolean => {
         const dateKey = date || todayKey();
@@ -474,8 +1091,44 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
                 updatedAt: new Date().toISOString(),
             };
         });
+
+        if (cloudEnabled && userId) {
+            const target = updated.find((schedule) => schedule.id === scheduleId);
+            if (target) {
+                const { data: cloudRow, error: updateError } = await supabase
+                    .from('medication_schedules')
+                    .update({
+                        date_overrides: target.dateOverrides || {},
+                    })
+                    .eq('id', scheduleId)
+                    .eq('user_id', userId)
+                    .select(SCHEDULE_SELECT_COLUMNS)
+                    .single();
+
+                if (updateError) {
+                    console.warn('[useMedicationSchedule] date override cloud sync failed:', updateError.message);
+                    setError('云端同步失败，已保存在本地缓存');
+                    setSyncState('mixed');
+                    saveSchedules(updated);
+                    return;
+                }
+
+                if (cloudRow) {
+                    const mapped = mapRowToSchedule(cloudRow as MedicationScheduleRow);
+                    const cloudUpdated = updated.map((schedule) =>
+                        schedule.id === scheduleId ? mapped : schedule
+                    );
+                    saveSchedules(cloudUpdated);
+                    vectorizeSchedule(mapped);
+                    setSyncState('cloud');
+                    setLastSyncedAt(new Date().toISOString());
+                    return;
+                }
+            }
+        }
+
         saveSchedules(updated);
-    }, [schedules, saveSchedules]);
+    }, [schedules, saveSchedules, cloudEnabled, userId, vectorizeSchedule]);
 
     const getSchedulesForDate = useCallback((date: string): MedicationSchedule[] => {
         return schedules
@@ -509,10 +1162,23 @@ export function useMedicationSchedule(): UseMedicationScheduleReturn {
         loadSchedules();
     }, [loadSchedules]);
 
+    useEffect(() => {
+        const handleInvalidate = () => {
+            void loadSchedules();
+        };
+
+        window.addEventListener(MEDICATION_SCHEDULES_INVALIDATED_EVENT, handleInvalidate);
+        return () => {
+            window.removeEventListener(MEDICATION_SCHEDULES_INVALIDATED_EVENT, handleInvalidate);
+        };
+    }, [loadSchedules]);
+
     return {
         schedules,
         takenRecords,
         anchorDate,
+        syncState,
+        lastSyncedAt,
         isLoading,
         isSaving,
         error,

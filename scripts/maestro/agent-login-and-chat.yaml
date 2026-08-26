@@ -1,0 +1,27 @@
+appId: com.young050223.MedicationAssistant
+---
+- stopApp
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "登录"
+    timeout: 30000
+- tapOn: "邮箱"
+- eraseText
+- inputText: ${TEST_EMAIL}
+- tapOn: "密码"
+- eraseText
+- inputText: ${TEST_PASSWORD}
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: "Agent"
+    timeout: 45000
+- tapOn: "Agent"
+- extendedWaitUntil:
+    visible: "请输入您的问题"
+    timeout: 45000
+- tapOn: "请输入您的问题"
+- inputText: "结合我的档案给我今天的用药提醒重点"
+- pressKey: Enter
+- waitForAnimationToEnd
+- takeScreenshot: stage5-agent-chat-reply

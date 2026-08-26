@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { IconPill, IconBack, IconCalendar, IconCheck, IconEdit, IconTrash, IconClose } from '../components/Icons';
 import { useMedicationSchedule } from '../hooks/medication/useMedicationSchedule';
 import ConfirmDoseModal, { type DoseInfo } from '../components/ConfirmDoseModal';
+import PreDoseInstructionModal from '../components/PreDoseInstructionModal';
 import type { ScheduleFormData } from '../types/MedicationSchedule.types';
 import { FREQUENCY_OPTIONS_KEYS } from '../types/MedicationFeedback.types';
 import { formatLocalDateKey, normalizeDateKey, parseDateKeyAsLocalDate } from '../utils/dateKey';
@@ -92,6 +93,8 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
     const {
         schedules,
         anchorDate,
+        syncState,
+        lastSyncedAt,
         isLoading,
         isSaving,
         error,
@@ -125,6 +128,7 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
         scheduleId: string;
         dateKey: string;
     } | null>(null);
+    const [preConfirmingDose, setPreConfirmingDose] = useState<DoseInfo | null>(null);
     const [confirmingDose, setConfirmingDose] = useState<DoseInfo | null>(null);
     const [statusToggle, setStatusToggle] = useState<{
         scheduleId: string;
@@ -208,6 +212,40 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
         },
         [getSchedulesForDate, selectedDateKey]
     );
+
+    const syncStateText = useMemo(() => {
+        const map: Record<typeof syncState, string> = {
+            cloud: t('schedule.sync.cloud', '云端已同步'),
+            local: t('schedule.sync.local', '仅本地缓存'),
+            mixed: t('schedule.sync.mixed', '云端同步异常，已回退本地'),
+            migrating: t('schedule.sync.migrating', '正在迁移本地数据到云端'),
+        };
+        return map[syncState];
+    }, [syncState, t]);
+
+    const syncStateShortText = useMemo(() => {
+        const map: Record<typeof syncState, string> = {
+            cloud: t('schedule.sync.cloudShort', '云端'),
+            local: t('schedule.sync.localShort', '本地'),
+            mixed: t('schedule.sync.mixedShort', '异常回退'),
+            migrating: t('schedule.sync.migratingShort', '迁移中'),
+        };
+        return map[syncState];
+    }, [syncState, t]);
+
+    const syncTimeText = useMemo(() => {
+        if (!lastSyncedAt || syncState !== 'cloud') return '';
+        try {
+            return new Date(lastSyncedAt).toLocaleString(i18n.language || 'zh-CN', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        } catch {
+            return '';
+        }
+    }, [lastSyncedAt, syncState, i18n.language]);
 
     const getCalendarDotClass = useCallback((dateKey: string, isTodayDate: boolean): string => {
         if (!medicationDates.has(dateKey)) return '';
@@ -392,33 +430,52 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
         setEditScope('future');
     }, [todayStr]);
 
-    const openConfirmModal = useCallback((schedule: any, reminder: any, doseDate: string) => {
-        setConfirmingDose({
+    const buildDoseInfo = useCallback((schedule: any, reminder: any, doseDate: string): DoseInfo => {
+        return {
             scheduleId: schedule.id,
             reminderId: reminder.id,
             medicationName: schedule.medicationName,
             dosage: reminder.dosage || schedule.medicationDosage,
             time: reminder.time,
             doseDate,
-        });
+            instructions: schedule.instructions || '',
+        };
     }, []);
+
+    const openFeedbackModal = useCallback((schedule: any, reminder: any, doseDate: string) => {
+        setConfirmingDose(buildDoseInfo(schedule, reminder, doseDate));
+    }, [buildDoseInfo]);
+
+    const openPreConfirmModal = useCallback((schedule: any, reminder: any, doseDate: string) => {
+        setPreConfirmingDose(buildDoseInfo(schedule, reminder, doseDate));
+    }, [buildDoseInfo]);
 
     const handleDoseConfirmed = useCallback(async (scheduleId: string, reminderId: string) => {
         const doseDate = confirmingDose?.doseDate || selectedDateKey;
         await markAsTaken(scheduleId, reminderId, doseDate);
     }, [markAsTaken, selectedDateKey, confirmingDose]);
 
+    const handlePreConfirmContinue = useCallback(() => {
+        if (!preConfirmingDose) return;
+        setConfirmingDose(preConfirmingDose);
+        setPreConfirmingDose(null);
+    }, [preConfirmingDose]);
+
     const handleStatusChange = useCallback(async (newStatus: 'taken' | 'missed') => {
         if (!statusToggle) return;
-        const { scheduleId, reminderId, schedule, reminder, date } = statusToggle;
+        const { scheduleId, reminderId, schedule, reminder, date, currentStatus } = statusToggle;
         if (newStatus === 'taken') {
             setStatusToggle(null);
-            openConfirmModal(schedule, reminder, date);
+            if (currentStatus === 'taken') {
+                openFeedbackModal(schedule, reminder, date);
+            } else {
+                openPreConfirmModal(schedule, reminder, date);
+            }
         } else {
             await markAsMissed(scheduleId, reminderId, date);
             setStatusToggle(null);
         }
-    }, [statusToggle, markAsMissed, openConfirmModal]);
+    }, [statusToggle, markAsMissed, openFeedbackModal, openPreConfirmModal]);
 
     const doSave = useCallback(async (scope: 'today' | 'future') => {
         console.log('[doSave] ENTER scope=', scope, 'isEditing=', isEditing, 'editingScheduleId=', editingScheduleId, 'formData=', JSON.stringify(formData));
@@ -550,15 +607,11 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
         formData,
         createSchedule,
         todayStr,
-        selectedDateKey,
         isEditing,
         editingScheduleId,
         schedules,
         updateSchedule,
         resetForm,
-        getSchedulesForDate,
-        getReminderStatus,
-        getConfirmableReminderId,
     ]);
 
     const handleSubmit = useCallback(async () => {
@@ -669,6 +722,11 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
                 </button>
             </div>
 
+            <div className={`schedule-sync-banner ${syncState}`}>
+                <span>{syncStateText}</span>
+                {syncTimeText && <span className="sync-time">{t('schedule.sync.time', '上次同步')}: {syncTimeText}</span>}
+            </div>
+
             {/* Apple 原生风格日历 */}
             <div className="calendar-section">
                 <div className="calendar-card">
@@ -734,6 +792,10 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
                 ) : (
                     filteredSchedules.map(schedule => {
                         const confirmableReminderId = isToday ? getConfirmableReminderId(schedule, selectedDateKey) : null;
+                        const sourceText = schedule.sourceRecordId
+                            ? t('schedule.source.prescription', '来源: 处方生成')
+                            : t('schedule.source.manual', '来源: 手动创建');
+                        const hasDateOverride = !!schedule.dateOverrides?.[selectedDateKey];
 
                         return (
                             <div key={schedule.id} className="schedule-card">
@@ -753,6 +815,20 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
                                 {schedule.instructions && (
                                     <p className="schedule-instructions">{schedule.instructions}</p>
                                 )}
+
+                                <div className="schedule-meta-row">
+                                    <span className={`schedule-meta-badge ${schedule.sourceRecordId ? 'source-prescription' : 'source-manual'}`}>
+                                        {sourceText}
+                                    </span>
+                                    {hasDateOverride && (
+                                        <span className="schedule-meta-badge source-override">
+                                            {t('schedule.source.override', '本日已覆盖')}
+                                        </span>
+                                    )}
+                                    <span className={`schedule-meta-badge sync-${syncState}`}>
+                                        {t('schedule.sync.label', '同步')}: {syncStateShortText}
+                                    </span>
+                                </div>
 
                                 <div className="reminder-list">
                                     {schedule.reminders.map(reminder => {
@@ -781,7 +857,7 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
                                                         </button>
                                                         <button
                                                             className="take-btn feedback-btn"
-                                                            onClick={() => openConfirmModal(schedule, reminder, selectedDateKey)}
+                                                            onClick={() => openFeedbackModal(schedule, reminder, selectedDateKey)}
                                                         >
                                                             <IconEdit size={14} />
                                                         </button>
@@ -796,7 +872,7 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
                                                 ) : isConfirmableToday ? (
                                                     <button
                                                         className="take-btn"
-                                                        onClick={() => openConfirmModal(schedule, reminder, selectedDateKey)}
+                                                        onClick={() => openPreConfirmModal(schedule, reminder, selectedDateKey)}
                                                     >
                                                         {t('schedule.confirmTake')}
                                                     </button>
@@ -1075,6 +1151,15 @@ export function MedicationSchedulePage({ onBack, autoOpenAdd }: MedicationSchedu
             )}
 
             {/* 确认服药弹窗 */}
+            {preConfirmingDose && (
+                <PreDoseInstructionModal
+                    dose={preConfirmingDose}
+                    onBack={() => setPreConfirmingDose(null)}
+                    onConfirm={handlePreConfirmContinue}
+                />
+            )}
+
+            {/* 服药反馈弹窗 */}
             {confirmingDose && (
                 <ConfirmDoseModal
                     dose={confirmingDose}

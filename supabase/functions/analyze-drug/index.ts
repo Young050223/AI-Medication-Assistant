@@ -17,7 +17,7 @@ import { summarizeDrugInfo, DISCLAIMER } from '../_shared/openai.ts';
 // CORS headers
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-user-jwt',
 };
 
 interface AnalyzeRequest {

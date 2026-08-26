@@ -11,13 +11,36 @@ import { generateEmbedding } from '../_shared/openai.ts';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-user-jwt',
 };
+
+function normalizeToken(raw: string | null | undefined): string | null {
+    if (!raw) return null;
+    const value = raw.trim();
+    if (!value) return null;
+    const bearerMatch = value.match(/^Bearer\s+(.+)$/i);
+    const token = bearerMatch ? bearerMatch[1] : value;
+    return token.trim() || null;
+}
+
+function getBearerToken(req: Request): string | null {
+    const userJwtHeader = normalizeToken(req.headers.get('x-user-jwt') || req.headers.get('X-User-Jwt'));
+    if (userJwtHeader) {
+        return userJwtHeader;
+    }
+
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+    if (!authHeader) return null;
+    const [scheme, token] = authHeader.split(' ');
+    if (scheme?.toLowerCase() !== 'bearer' || !token) return null;
+    return normalizeToken(token);
+}
 
 interface EmbeddingRequest {
     text: string;
     queryType?: 'drug_search' | 'symptom' | 'interaction' | 'side_effect';
     saveToHistory?: boolean;
+    userJwt?: string;
 }
 
 interface EmbeddingResponse {
@@ -69,14 +92,11 @@ serve(async (req) => {
 
         // 如果需要保存到历史记录
         if (saveToHistory && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
-            // 从请求头获取用户JWT
-            const authHeader = req.headers.get('Authorization');
-
-            if (authHeader) {
+            const token = normalizeToken(body.userJwt) || getBearerToken(req);
+            if (token) {
                 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
                 // 验证用户token获取user_id
-                const token = authHeader.replace('Bearer ', '');
                 const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
                 if (!authError && user) {

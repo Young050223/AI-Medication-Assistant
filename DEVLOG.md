@@ -1,5 +1,29 @@
 # AI Medication Assistant - 开发日志
 
+## 2026-03-10 — Phase 8 测试与灰度上线资产
+
+### 新增功能
+- **发布阶段开关（Edge Functions）**
+  - 新增 `supabase/functions/_shared/feature_rollout.ts`
+  - 支持 `AGENT_ROLLOUT_STAGE` 四阶段：`off` / `cloud_storage` / `suggestions` / `personalized`
+  - 新增细粒度开关：`FEATURE_AGENT_SUGGESTIONS_ENABLED`、`FEATURE_AGENT_PERSONALIZED_CONTEXT_ENABLED`
+- **Suggestions 灰度降级**
+  - `agent_suggestions` 在 suggestions 关闭时返回稳定兜底问题，不中断前端入口
+- **Agent 个性化灰度**
+  - `agent-chat` 在个性化关闭时退回最小上下文编排，保留基础可用性
+
+### 测试与运维
+- 新增 `scripts/stage8-data-consistency-check.mjs`（数据一致性）
+- 新增 `scripts/stage8-agent-quality-check.mjs`（Agent 质量）
+- 新增 `scripts/stage8-release-readiness.mjs`（构建+静态就绪+可选联调）
+- 新增 `docs/release/STAGE8_ROLLOUT_RUNBOOK.md`（灰度、回滚、手动验收）
+- `package.json` 新增脚本：
+  - `stage8:consistency`
+  - `stage8:quality`
+  - `stage8:readiness`
+
+---
+
 ## 2026-03-07 — 删除范围弹窗 + 日历定位优化
 
 ### 新增功能

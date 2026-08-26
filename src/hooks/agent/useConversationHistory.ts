@@ -51,7 +51,7 @@ export function useConversationHistory(pageSize: number = DEFAULT_PAGE_SIZE): Us
         setError(null);
 
         try {
-            const result = await fetchConversationList(user.id, targetPage, pageSize);
+            const result = await fetchConversationList(targetPage, pageSize);
             if (!result.success) {
                 setError(result.error || '加载历史对话失败');
                 return;

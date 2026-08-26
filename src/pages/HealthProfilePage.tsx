@@ -108,7 +108,7 @@ export function HealthProfilePage({ onComplete, onBack, onSkip }: HealthProfileP
                 onComplete();
             }, 1500);
         }
-    }, [formData, saveProfile, onComplete]);
+    }, [formData, saveProfile, onComplete, t]);
 
     // 加载中
     if (isLoading) {

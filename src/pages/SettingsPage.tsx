@@ -7,7 +7,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/user/useAuth';
-import { IconProfile, IconLanguage, IconSun, IconHealthProfile, IconMembership, IconLock } from '../components/Icons';
+import { useAgentPreferences } from '../hooks/user/useAgentPreferences';
+import { IconProfile, IconLanguage, IconSun, IconHealthProfile, IconMembership, IconLock, IconChat } from '../components/Icons';
+import {
+    type FontSizePreset,
+    type ThemeMode,
+    getStoredFontSizePreset,
+    getStoredThemeMode,
+    persistFontSizePreset,
+    persistThemeMode,
+} from '../utils/displayPreferences';
 import './SettingsPage.css';
 
 interface SettingsPageProps {
@@ -15,37 +24,40 @@ interface SettingsPageProps {
     onLogout: () => void;
 }
 
-type ThemeMode = 'light' | 'dark' | 'auto';
-
-const applyTheme = (mode: ThemeMode) => {
-    if (mode === 'auto') {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-    } else {
-        document.documentElement.setAttribute('data-theme', mode);
-    }
-};
-
 export default function SettingsPage({ onNavigateToHealthProfile, onLogout }: SettingsPageProps) {
     const { t, i18n } = useTranslation();
     const { user } = useAuth();
+    const {
+        agentStyle,
+        isLoading: isAgentStyleLoading,
+        isSaving: isAgentStyleSaving,
+        error: agentStyleError,
+        saveAgentStyle,
+    } = useAgentPreferences();
 
     // 主题
     const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
-        return (localStorage.getItem('theme') as ThemeMode) || 'auto';
+        return getStoredThemeMode();
+    });
+    const [fontSizePreset, setFontSizePreset] = useState<FontSizePreset>(() => {
+        return getStoredFontSizePreset();
     });
 
     const handleThemeChange = useCallback((mode: ThemeMode) => {
         setThemeMode(mode);
-        localStorage.setItem('theme', mode);
-        applyTheme(mode);
+        persistThemeMode(mode);
+    }, []);
+
+    const handleFontSizeChange = useCallback((preset: FontSizePreset) => {
+        setFontSizePreset(preset);
+        persistFontSizePreset(preset);
     }, []);
 
     // 监听系统主题变化（auto模式下）
     useEffect(() => {
         const mq = window.matchMedia('(prefers-color-scheme: dark)');
         const handler = () => {
-            if (themeMode === 'auto') applyTheme('auto');
+            if (themeMode === 'auto') persistThemeMode('auto');
         };
         mq.addEventListener('change', handler);
         return () => mq.removeEventListener('change', handler);
@@ -54,6 +66,10 @@ export default function SettingsPage({ onNavigateToHealthProfile, onLogout }: Se
     const handleLanguageChange = (lang: string) => {
         i18n.changeLanguage(lang);
     };
+
+    const handleAgentStyleChange = useCallback((style: 'friendly' | 'efficient') => {
+        void saveAgentStyle(style);
+    }, [saveAgentStyle]);
 
     return (
         <div className="settings-page">
@@ -127,6 +143,88 @@ export default function SettingsPage({ onNavigateToHealthProfile, onLogout }: Se
                             <span className="theme-label">{t('settings.themeAuto', '自动')}</span>
                         </button>
                     </div>
+                </div>
+
+                <div className="setting-item font-size-setting">
+                    <div className="setting-left">
+                        <span className="setting-icon"><IconChat size={20} /></span>
+                        <div className="setting-copy">
+                            <span className="setting-name">{t('settings.fontSize', '字体大小')}</span>
+                            <span className="setting-description">
+                                {t('settings.fontSizeDesc', '调整全局阅读字号，默认中')}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="font-size-options" aria-label={t('settings.fontSize', '字体大小')}>
+                        <button
+                            type="button"
+                            className={`font-size-option ${fontSizePreset === 'small' ? 'active' : ''}`}
+                            onClick={() => handleFontSizeChange('small')}
+                        >
+                            {t('settings.fontSizeSmall', '小')}
+                        </button>
+                        <button
+                            type="button"
+                            className={`font-size-option ${fontSizePreset === 'medium' ? 'active' : ''}`}
+                            onClick={() => handleFontSizeChange('medium')}
+                        >
+                            {t('settings.fontSizeMedium', '中')}
+                        </button>
+                        <button
+                            type="button"
+                            className={`font-size-option ${fontSizePreset === 'large' ? 'active' : ''}`}
+                            onClick={() => handleFontSizeChange('large')}
+                        >
+                            {t('settings.fontSizeLarge', '大')}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="setting-item agent-style-setting">
+                    <div className="setting-left">
+                        <span className="setting-icon"><IconChat size={20} /></span>
+                        <div className="setting-copy">
+                            <span className="setting-name">{t('settings.agentStyle', '助手语气')}</span>
+                            <span className="setting-description">
+                                {t('settings.agentStyleDesc', '选择 AI 回答时默认呈现的表达风格')}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="agent-style-options" aria-label={t('settings.agentStyle', '助手语气')}>
+                        <button
+                            type="button"
+                            className={`agent-style-option ${agentStyle === 'friendly' ? 'active' : ''}`}
+                            onClick={() => handleAgentStyleChange('friendly')}
+                            disabled={isAgentStyleSaving}
+                        >
+                            <span className="agent-style-title">{t('settings.agentStyleFriendly', '亲和')}</span>
+                            <span className="agent-style-body">
+                                {t('settings.agentStyleFriendlyDesc', '温暖、协作、贴心')}
+                            </span>
+                        </button>
+                        <button
+                            type="button"
+                            className={`agent-style-option ${agentStyle === 'efficient' ? 'active' : ''}`}
+                            onClick={() => handleAgentStyleChange('efficient')}
+                            disabled={isAgentStyleSaving}
+                        >
+                            <span className="agent-style-title">{t('settings.agentStyleEfficient', '务实')}</span>
+                            <span className="agent-style-body">
+                                {t('settings.agentStyleEfficientDesc', '简洁、专注、直接')}
+                            </span>
+                        </button>
+                    </div>
+
+                    <p className={`setting-status ${agentStyleError ? 'error' : ''}`}>
+                        {agentStyleError
+                            || (isAgentStyleSaving
+                                ? t('settings.agentStyleSaving', '正在保存风格设置...')
+                                : isAgentStyleLoading
+                                    ? t('app.loading', '加载中...')
+                                    : t('settings.agentStyleHint', '风格只影响表达方式，不影响医疗安全边界')
+                            )}
+                    </p>
                 </div>
             </div>
 

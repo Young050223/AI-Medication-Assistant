@@ -6,7 +6,7 @@
  * @modified 2026-01-30 - 国际化支持
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSpeechRecognition } from '../hooks/common/useSpeechRecognition';
 import { useMedicationFeedback } from '../hooks/medication/useMedicationFeedback';
@@ -39,7 +39,7 @@ export function MedicationFeedbackPage({
 }: MedicationFeedbackPageProps) {
     const { t } = useTranslation();
     const { schedules } = useMedicationSchedule();
-    const { createFeedback, isSaving, error: saveError } = useMedicationFeedback();
+    const { createFeedback, getFeedbackHistory, isSaving, error: saveError } = useMedicationFeedback();
     const {
         isListening,
         transcript,
@@ -61,6 +61,15 @@ export function MedicationFeedbackPage({
     const [selectedSideEffects, setSelectedSideEffects] = useState<SideEffectKey[]>([]);
     const [inputMode, setInputMode] = useState<'voice' | 'text'>('voice');
     const [showSuccess, setShowSuccess] = useState(false);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [feedbackHistory, setFeedbackHistory] = useState<Array<{
+        id: string;
+        medicationName: string;
+        mood: MoodType;
+        content: string;
+        sideEffects: string[];
+        createdAt: string;
+    }>>([]);
 
     // 同步语音识别结果到内容
     useEffect(() => {
@@ -68,6 +77,32 @@ export function MedicationFeedbackPage({
             setContent(transcript);
         }
     }, [transcript]);
+
+    const loadHistory = useCallback(async () => {
+        setHistoryLoading(true);
+        try {
+            const rows = await getFeedbackHistory();
+            setFeedbackHistory(rows.slice(0, 20).map((item) => ({
+                id: item.id,
+                medicationName: item.medicationName,
+                mood: item.mood,
+                content: item.content,
+                sideEffects: item.sideEffects,
+                createdAt: item.createdAt,
+            })));
+        } finally {
+            setHistoryLoading(false);
+        }
+    }, [getFeedbackHistory]);
+
+    useEffect(() => {
+        void loadHistory();
+    }, [loadHistory]);
+
+    const visibleHistory = useMemo(() => {
+        if (!selectedMedication) return feedbackHistory;
+        return feedbackHistory.filter((item) => item.medicationName === selectedMedication);
+    }, [feedbackHistory, selectedMedication]);
 
     /**
      * 处理药物选择
@@ -147,7 +182,6 @@ export function MedicationFeedbackPage({
         selectedMedication,
         selectedScheduleId,
         content,
-        inputMode,
         selectedMood,
         selectedSideEffects,
         createFeedback,
@@ -328,6 +362,44 @@ export function MedicationFeedbackPage({
                             </button>
                         ))}
                     </div>
+                </section>
+
+                <section className="feedback-section history-section">
+                    <div className="history-header">
+                        <label className="section-label">{t('feedback.historyTitle', '近期反馈记录（云端）')}</label>
+                        <button className="clear-btn" type="button" onClick={() => void loadHistory()}>
+                            {t('feedback.refreshHistory', '刷新')}
+                        </button>
+                    </div>
+                    {historyLoading ? (
+                        <p className="history-empty">{t('app.loading', '加载中...')}</p>
+                    ) : visibleHistory.length === 0 ? (
+                        <p className="history-empty">{t('feedback.historyEmpty', '暂无反馈记录')}</p>
+                    ) : (
+                        <div className="history-list">
+                            {visibleHistory.map((item) => {
+                                const moodConfig = MOOD_CONFIG[item.mood];
+                                const dateLabel = new Date(item.createdAt).toLocaleString();
+                                return (
+                                    <div key={item.id} className="history-card">
+                                        <div className="history-card-head">
+                                            <span className="history-med-name">{item.medicationName}</span>
+                                            <span className={`history-mood mood-${item.mood}`}>
+                                                {moodConfig.emoji} {t(moodConfig.labelKey)}
+                                            </span>
+                                        </div>
+                                        <p className="history-content">{item.content || t('feedback.noContent', '无描述')}</p>
+                                        <div className="history-meta">
+                                            <span>{dateLabel}</span>
+                                            {item.sideEffects.length > 0 && (
+                                                <span>{t('feedback.sideEffectsTitle', '副作用')}: {item.sideEffects.join(' / ')}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </section>
 
                 {/* 提交按钮 */}
